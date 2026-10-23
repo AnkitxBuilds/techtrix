@@ -30,19 +30,22 @@ export const DonorDashboard: React.FC = () => {
     setSmartMatchTargetDonation,
     setSelectedDonationId,
     cancelDonation,
-    impactStats,
   } = useApp();
 
   const [filterTab, setFilterTab] = useState<'all' | 'available' | 'scheduled' | 'completed' | 'flagged'>('all');
 
-  // Filter donations belonging to this donor or relevant demo records
+  // Filter donations belonging to this donor.
   const myDonations = useMemo(() => {
-    return donations.filter((d) => d.donorId === currentDonor.id || d.donorName.includes(currentDonor.name));
+    return donations.filter((d) => d.donorId === currentDonor.id);
   }, [donations, currentDonor]);
 
   const filteredListings = useMemo(() => {
     if (filterTab === 'available') {
-      return myDonations.filter((d) => d.status === 'available' && d.safetyStatus === 'eligible');
+      return myDonations.filter((d) =>
+        d.status === 'available' &&
+        d.safetyStatus === 'eligible' &&
+        new Date(d.deadlineAt).getTime() > Date.now()
+      );
     }
     if (filterTab === 'scheduled') {
       return myDonations.filter((d) => ['accepted', 'pickup_scheduled', 'picked_up'].includes(d.status));
@@ -56,12 +59,15 @@ export const DonorDashboard: React.FC = () => {
     return myDonations;
   }, [myDonations, filterTab]);
 
-  const activeCount = myDonations.filter((d) => d.status === 'available').length;
+  const activeCount = myDonations.filter((d) =>
+    d.status === 'available' &&
+    d.safetyStatus === 'eligible' &&
+    new Date(d.deadlineAt).getTime() > Date.now()
+  ).length;
   const inProgressCount = myDonations.filter((d) => ['accepted', 'pickup_scheduled', 'picked_up'].includes(d.status)).length;
   const completedCount = myDonations.filter((d) => d.status === 'delivered').length;
 
   const totalKg = myDonations.reduce((sum, d) => sum + (d.unit === 'kg' ? d.quantity : Math.round(d.servingsCount * 0.42)), 0);
-  const totalMeals = Math.round(totalKg / 0.42);
 
   // If view is 'profile', render Donor Profile subview
   if (donorView === 'profile') {
@@ -94,7 +100,7 @@ export const DonorDashboard: React.FC = () => {
                 <h2 className="text-xl font-bold text-stone-900">{currentDonor.name}</h2>
                 <span className="text-xs font-semibold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded flex items-center gap-1">
                   <ShieldCheck className="w-3.5 h-3.5" />
-                  Verified Food Provider
+                  Food provider profile
                 </span>
               </div>
               <p className="text-xs text-stone-500 mt-1">
@@ -191,11 +197,11 @@ export const DonorDashboard: React.FC = () => {
 
         <div className="bg-white p-5 rounded-2xl border border-stone-200 shadow-xs">
           <div className="flex items-center justify-between text-stone-500 text-xs mb-1">
-            <span>Surplus Meals Diverted</span>
+            <span>Food Volume Listed</span>
             <BarChart2 className="w-4 h-4 text-emerald-700" />
           </div>
-          <div className="text-3xl font-extrabold text-stone-900">~{totalMeals}</div>
-          <p className="text-[11px] text-stone-500 mt-1">{totalKg} kg edible food saved</p>
+          <div className="text-3xl font-extrabold text-stone-900">{totalKg} kg</div>
+          <p className="text-[11px] text-stone-500 mt-1">Across all listing statuses</p>
         </div>
       </div>
 
@@ -324,7 +330,15 @@ export const DonorDashboard: React.FC = () => {
 
                       {/* Status chip */}
                       <div className="absolute top-2.5 right-2.5">
-                        {isExpired ? (
+                        {donation.status === 'delivered' ? (
+                          <span className="text-[10px] font-bold uppercase bg-emerald-700 text-white px-2 py-0.5 rounded shadow-xs">
+                            Delivered
+                          </span>
+                        ) : donation.status === 'cancelled' ? (
+                          <span className="text-[10px] font-bold uppercase bg-stone-700 text-white px-2 py-0.5 rounded shadow-xs">
+                            Cancelled
+                          </span>
+                        ) : isExpired ? (
                           <span className="text-[10px] font-bold uppercase bg-rose-600 text-white px-2 py-0.5 rounded shadow-xs">
                             Expired
                           </span>

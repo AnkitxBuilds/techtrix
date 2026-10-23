@@ -83,6 +83,7 @@ export interface Organization {
   id: string;
   name: string;
   type: 'NGO' | 'Shelter' | 'Charity' | 'Community Kitchen';
+  isIllustrative?: boolean;
   verified: boolean;
   verificationNumber: string;
   address: string;

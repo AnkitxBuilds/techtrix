@@ -301,7 +301,11 @@ export const SmartMatchView: React.FC = () => {
                         <span className="text-[10px] font-semibold bg-stone-100 text-stone-600 px-2 py-0.5 rounded">
                           {org.type}
                         </span>
-                        {org.verified ? (
+                        {org.isIllustrative ? (
+                          <span className="text-[11px] font-semibold text-stone-600 bg-stone-100 px-2 py-0.5 rounded border border-stone-200">
+                            Illustrative eligibility
+                          </span>
+                        ) : org.verified ? (
                           <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded flex items-center gap-1 border border-emerald-200/60">
                             <ShieldCheck className="w-3.5 h-3.5" />
                             {org.verificationNumber}

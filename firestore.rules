@@ -121,6 +121,7 @@ service cloud.firestore {
             'assignedDriverName',
             'assignedVehicle',
             'currentStageIndex',
+            'statusHistory',
             'updatedAt'
           ])
         ) ||

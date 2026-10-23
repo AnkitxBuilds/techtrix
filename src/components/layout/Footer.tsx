@@ -1,9 +1,9 @@
 import React from 'react';
-import { UtensilsCrossed, ShieldCheck, Heart, Sparkles, Scale, Info } from 'lucide-react';
+import { UtensilsCrossed, Heart, Sparkles, Scale, Info } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
 export const Footer: React.FC = () => {
-  const { setRole, setDonorView, setRecipientView, setAdminView, setIsImpactModalOpen, setIsRoleModalOpen } = useApp();
+  const { setRole, setDonorView, setRecipientView, setIsImpactModalOpen, setIsRoleModalOpen } = useApp();
 
   return (
     <footer className="bg-stone-900 text-stone-300 border-t border-stone-800 text-sm mt-auto">
@@ -22,15 +22,13 @@ export const Footer: React.FC = () => {
             <p className="text-stone-400 text-xs sm:text-sm leading-relaxed max-w-md">
               &ldquo;Good food deserves another destination.&rdquo; Intelligent surplus food waste reduction and safe redistribution platform connecting commercial kitchens, hotels, canteens, and hostels with verified community shelters and hunger-relief organizations.
             </p>
-            <div className="p-3 bg-stone-800/80 rounded-lg border border-stone-700/60 text-xs text-stone-400 space-y-1">
-              <div className="flex items-center gap-1.5 text-emerald-400 font-semibold">
-                <ShieldCheck className="w-4 h-4" />
-                <span>TechTrix &apos;26 Hackathon Problem Statement Solution</span>
-              </div>
-              <p className="text-stone-400">
-                Phase 1 Prototype built with interactive local state, transparent rule-based SmartMatch, and safety gating. Prepared for enterprise Firebase Auth & Firestore backend.
-              </p>
-            </div>
+            <button
+              onClick={() => setIsImpactModalOpen(true)}
+              className="text-emerald-300 hover:text-white text-xs underline underline-offset-2 flex items-center gap-1.5"
+            >
+              <Info className="w-3.5 h-3.5" />
+              Data sources, estimates &amp; access information
+            </button>
           </div>
 
           {/* Role Navigation */}
@@ -63,13 +61,10 @@ export const Footer: React.FC = () => {
               </li>
               <li>
                 <button
-                  onClick={() => {
-                    setRole('admin');
-                    setAdminView('safety_review');
-                  }}
+                  onClick={() => setIsRoleModalOpen(true)}
                   className="hover:text-emerald-400 transition-colors flex items-center gap-1.5"
                 >
-                  <span>Food Safety Desk & Admin Review</span>
+                  <span>Reviewer Workspace</span>
                 </button>
               </li>
               <li>
@@ -77,7 +72,7 @@ export const Footer: React.FC = () => {
                   onClick={() => setIsRoleModalOpen(true)}
                   className="text-emerald-400 hover:text-emerald-300 font-medium transition-colors flex items-center gap-1"
                 >
-                  <span>Switch Demo Persona &rarr;</span>
+                  <span>Switch Workspace &rarr;</span>
                 </button>
               </li>
             </ul>
@@ -103,7 +98,7 @@ export const Footer: React.FC = () => {
                   onClick={() => setIsImpactModalOpen(true)}
                   className="hover:text-white underline decoration-dotted underline-offset-2"
                 >
-                  FAO Meal Estimation Model (0.42kg/meal)
+                  Data &amp; Impact Information
                 </button>
               </li>
               <li className="text-[11px] text-stone-400 pt-2 border-t border-stone-800">

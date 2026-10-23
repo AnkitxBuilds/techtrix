@@ -130,7 +130,7 @@ export const CreateDonationForm: React.FC = () => {
     setSelectedFile(file);
     setPreviewUrl(newPreviewUrl);
 
-    // 5. Read as Data URL to store in donation record for persistence across demo sessions
+    // 5. Read as Data URL so the image persists with the listing in this workspace.
     const reader = new FileReader();
     reader.onload = (event) => {
       if (typeof event.target?.result === 'string') {

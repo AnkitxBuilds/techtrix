@@ -1,14 +1,11 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Building2,
   HeartHandshake,
   ShieldCheck,
   X,
   Check,
-  Sparkles,
   Info,
-  ArrowRight,
-  ExternalLink,
   ChevronRight
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
@@ -30,15 +27,32 @@ export const RoleSelectModal: React.FC = () => {
     currentRecipient,
     setCurrentRecipient,
     addToast,
+    firebaseUser,
+    userProfile,
   } = useApp();
 
   const [selectedRole, setSelectedRole] = useState<UserRole>(role === 'landing' ? 'donor' : role);
   const [selectedDonorId, setSelectedDonorId] = useState<string>(currentDonor.id);
   const [selectedRecipientId, setSelectedRecipientId] = useState<string>(currentRecipient.id);
 
+  useEffect(() => {
+    if (isRoleModalOpen && firebaseUser && userProfile) {
+      setSelectedRole(userProfile.role);
+    }
+  }, [isRoleModalOpen, firebaseUser, userProfile]);
+
   if (!isRoleModalOpen) return null;
 
   const handleConfirm = () => {
+    if (firebaseUser && selectedRole !== userProfile?.role) {
+      addToast({
+        type: 'error',
+        title: 'Workspace Not Authorized',
+        message: 'Sign in with an account assigned to this role to access its protected workspace.',
+      });
+      return;
+    }
+
     if (selectedRole === 'donor') {
       const d = donors.find((item) => item.id === selectedDonorId) || donors[0];
       setCurrentDonor(d);
@@ -46,8 +60,8 @@ export const RoleSelectModal: React.FC = () => {
       setDonorView('overview');
       addToast({
         type: 'info',
-        title: 'Logged in as Donor',
-        message: `Switched session to ${d.name} (${d.type}).`,
+        title: 'Donor Workspace',
+        message: `Workspace opened for ${d.name} (${d.type}).`,
       });
     } else if (selectedRole === 'recipient') {
       const o = organizations.find((item) => item.id === selectedRecipientId) || organizations[0];
@@ -56,16 +70,18 @@ export const RoleSelectModal: React.FC = () => {
       setRecipientView('overview');
       addToast({
         type: 'info',
-        title: 'Logged in as Recipient',
-        message: `Switched session to ${o.name} (${o.type}).`,
+        title: 'Recipient Workspace',
+        message: `Workspace opened for ${o.name} (${o.type}).`,
       });
     } else if (selectedRole === 'admin') {
       setRole('admin');
       setAdminView('safety_review');
       addToast({
         type: 'info',
-        title: 'Admin Desk Active',
-        message: 'Viewing Food Safety Review & NGO Verification queue.',
+        title: firebaseUser ? 'Reviewer Workspace' : 'Reviewer Preview',
+        message: firebaseUser
+          ? 'Opening your authorized reviewer workspace.'
+          : 'Previewing review workflows with local illustrative records.',
       });
     } else {
       setRole('landing');
@@ -81,12 +97,12 @@ export const RoleSelectModal: React.FC = () => {
           <div>
             <div className="flex items-center gap-2">
               <span className="bg-emerald-700/70 text-emerald-100 text-[11px] font-semibold uppercase px-2 py-0.5 rounded">
-                Demo Workspace
+                Workspace Selection
               </span>
-              <h2 className="text-xl font-bold tracking-tight">Select Role Persona</h2>
+              <h2 className="text-xl font-bold tracking-tight">Choose a Workspace</h2>
             </div>
             <p className="text-emerald-100/80 text-xs sm:text-sm mt-1">
-              Test both sides of the redistribution workflow with sample organizations.
+              Open a donor, recipient, or reviewer workspace.
             </p>
           </div>
           <button
@@ -97,11 +113,13 @@ export const RoleSelectModal: React.FC = () => {
           </button>
         </div>
 
-        {/* Demo Disclaimer notice */}
+        {/* Access boundary notice */}
         <div className="bg-amber-50 border-b border-amber-200 px-6 py-2.5 flex items-start gap-2.5 text-xs text-amber-900">
           <Info className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
           <div>
-            <strong className="font-semibold">Interactive Prototype:</strong> This demo operates with client-side reactive state to test donor-to-recipient redistribution cycles. No real authentication credentials are required for this phase.
+            {firebaseUser
+              ? `This account is assigned the ${userProfile?.role || 'current'} role. Workspace navigation does not change account permissions.`
+              : 'Workspace selection changes this browser view only. Signing in and server-side authorization are required for protected account operations.'}
           </div>
         </div>
 
@@ -112,7 +130,8 @@ export const RoleSelectModal: React.FC = () => {
             {/* Donor Option */}
             <button
               type="button"
-              onClick={() => setSelectedRole('donor')}
+              onClick={() => !firebaseUser || userProfile?.role === 'donor' ? setSelectedRole('donor') : undefined}
+              disabled={Boolean(firebaseUser && userProfile?.role !== 'donor')}
               className={`p-4 rounded-xl border text-left transition-all relative flex flex-col justify-between ${
                 selectedRole === 'donor'
                   ? 'border-emerald-600 bg-emerald-50/70 shadow-xs ring-2 ring-emerald-600/20'
@@ -140,7 +159,8 @@ export const RoleSelectModal: React.FC = () => {
             {/* Recipient Option */}
             <button
               type="button"
-              onClick={() => setSelectedRole('recipient')}
+              onClick={() => !firebaseUser || userProfile?.role === 'recipient' ? setSelectedRole('recipient') : undefined}
+              disabled={Boolean(firebaseUser && userProfile?.role !== 'recipient')}
               className={`p-4 rounded-xl border text-left transition-all relative flex flex-col justify-between ${
                 selectedRole === 'recipient'
                   ? 'border-emerald-600 bg-emerald-50/70 shadow-xs ring-2 ring-emerald-600/20'
@@ -153,7 +173,7 @@ export const RoleSelectModal: React.FC = () => {
                 }`}>
                   <HeartHandshake className="w-5 h-5" />
                 </div>
-                <h3 className="font-bold text-stone-900 text-sm">Verified Recipient</h3>
+                <h3 className="font-bold text-stone-900 text-sm">Recipient NGO</h3>
                 <p className="text-stone-500 text-xs mt-1 leading-snug">
                   NGOs, shelters, charities & community kitchens claiming donations.
                 </p>
@@ -168,7 +188,8 @@ export const RoleSelectModal: React.FC = () => {
             {/* Admin Desk Option */}
             <button
               type="button"
-              onClick={() => setSelectedRole('admin')}
+              onClick={() => !firebaseUser || userProfile?.role === 'admin' ? setSelectedRole('admin') : undefined}
+              disabled={Boolean(firebaseUser && userProfile?.role !== 'admin')}
               className={`p-4 rounded-xl border text-left transition-all relative flex flex-col justify-between ${
                 selectedRole === 'admin'
                   ? 'border-emerald-600 bg-emerald-50/70 shadow-xs ring-2 ring-emerald-600/20'
@@ -181,7 +202,7 @@ export const RoleSelectModal: React.FC = () => {
                 }`}>
                   <ShieldCheck className="w-5 h-5" />
                 </div>
-                <h3 className="font-bold text-stone-900 text-sm">Safety Review Desk</h3>
+                <h3 className="font-bold text-stone-900 text-sm">{firebaseUser ? 'Reviewer Workspace' : 'Reviewer Preview'}</h3>
                 <p className="text-stone-500 text-xs mt-1 leading-snug">
                   Audit flagged food items & approve pending NGO credentials.
                 </p>
@@ -194,11 +215,11 @@ export const RoleSelectModal: React.FC = () => {
             </button>
           </div>
 
-          {/* Persona selector if Donor */}
+          {/* Donor workspace selection */}
           {selectedRole === 'donor' && (
             <div className="bg-stone-50 rounded-xl p-4 border border-stone-200/80 space-y-3">
               <label className="block text-xs font-semibold text-stone-700 uppercase tracking-wider">
-                Select Active Donor Establishment:
+                Select donor organization:
               </label>
               <div className="space-y-2">
                 {donors.map((d) => (
@@ -228,18 +249,18 @@ export const RoleSelectModal: React.FC = () => {
                         <p className="text-xs text-stone-500">{d.address}</p>
                       </div>
                     </div>
-                    <span className="text-xs text-emerald-700 font-medium">Verified Donor</span>
+                    <span className="text-xs text-stone-600 font-medium">Organization profile</span>
                   </label>
                 ))}
               </div>
             </div>
           )}
 
-          {/* Persona selector if Recipient */}
+          {/* Recipient workspace selection */}
           {selectedRole === 'recipient' && (
             <div className="bg-stone-50 rounded-xl p-4 border border-stone-200/80 space-y-3">
               <label className="block text-xs font-semibold text-stone-700 uppercase tracking-wider">
-                Select Active Recipient Organization:
+                Select recipient organization:
               </label>
               <div className="space-y-2">
                 {organizations.map((org) => (
@@ -271,10 +292,12 @@ export const RoleSelectModal: React.FC = () => {
                         </p>
                       </div>
                     </div>
-                    {org.verified ? (
+                    {org.isIllustrative ? (
+                      <span className="text-xs text-stone-500 font-medium">Illustrative record</span>
+                    ) : org.verified ? (
                       <span className="text-xs text-emerald-700 font-medium flex items-center gap-1">
                         <ShieldCheck className="w-3.5 h-3.5" />
-                        Verified
+                        Accredited
                       </span>
                     ) : (
                       <span className="text-xs text-amber-600 font-medium flex items-center gap-1">
@@ -287,14 +310,16 @@ export const RoleSelectModal: React.FC = () => {
             </div>
           )}
 
-          {/* If Admin */}
+          {/* Reviewer workspace */}
           {selectedRole === 'admin' && (
             <div className="bg-stone-50 rounded-xl p-4 border border-stone-200/80 text-xs text-stone-600 space-y-2">
               <p className="font-semibold text-stone-800">
-                Food Safety Officer & NGO Verification Desk
+                {firebaseUser ? 'Food Safety Reviewer' : 'Reviewer workflow preview'}
               </p>
               <p>
-                In production, this area is protected by Firebase RBAC (Role-Based Access Control). Here you can audit donations flagged for thermal non-compliance or expiring turnaround windows, and approve/flag NGO credentials.
+                {firebaseUser
+                  ? 'Review access is determined by the authenticated Firebase account and Firestore rules.'
+                  : 'Review actions here update local illustrative records only. They do not grant administrator permissions or change production records.'}
               </p>
             </div>
           )}

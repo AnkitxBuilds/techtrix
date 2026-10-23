@@ -18,6 +18,7 @@ import {
   PackageCheck
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { evaluateSmartMatches } from '../../services/smartMatch';
 import heroImage from '../../assets/images/hero_food_redistribution_1792735004588.jpg';
 
 const BotanicalFlourish: React.FC<{ className?: string }> = ({ className = '' }) => (
@@ -75,47 +76,28 @@ export const LandingPage: React.FC = () => {
 
   // Active eligible donations for preview
   const activeDonations = donations
-    .filter((d) => d.status === 'available' && d.safetyStatus === 'eligible')
+    .filter((d) =>
+      d.status === 'available' &&
+      d.safetyStatus === 'eligible' &&
+      new Date(d.deadlineAt).getTime() > Date.now()
+    )
     .slice(0, 3);
 
-  // Representative donation for the hero floating SmartMatch preview card
-  const heroListing = activeDonations[0] || {
-    id: 'hero-preview-item',
-    title: 'Surplus Banquet Buffet: Dal Tadka & Paneer Butter Masala',
-    quantity: 35,
-    unit: 'kg' as const,
-    servingsCount: 85,
-    deadlineAt: new Date(Date.now() + 2.5 * 3600 * 1000).toISOString(),
-    storageCondition: 'Hot-hold (>60°C)' as const,
-    donorName: 'Grand Pavilion Banquet & Hotel',
-    pickupArea: 'Central Commercial Zone',
-    category: 'Cooked Meals' as const,
-    safetyStatus: 'eligible' as const,
-    status: 'available' as const,
-    currentStageIndex: 0,
-    statusHistory: [],
-    preparedAt: new Date(Date.now() - 3600 * 1000).toISOString(),
-    packagingType: 'Sealed Catering Trays' as const,
-    pickupAddress: 'Grand Pavilion Dock 2',
-    donorId: 'donor-1',
-    donorType: 'Hotel' as const,
-    contactPhone: '+91 98301 22891',
-    handlingNotes: 'Maintained at >65°C in thermal carriers',
-    allergens: ['Dairy'],
-    dietaryTags: ['Pure Veg' as const],
-    imageUrl: '',
-  };
-
-  const heroDeadlineMs = new Date(heroListing.deadlineAt).getTime();
-  const heroHoursLeft = Math.max(0, (heroDeadlineMs - Date.now()) / (1000 * 3600));
+  const heroListing = activeDonations[0];
+  const heroHoursLeft = heroListing
+    ? Math.max(0, (new Date(heroListing.deadlineAt).getTime() - Date.now()) / (1000 * 3600))
+    : 0;
+  const heroMatch = heroListing
+    ? evaluateSmartMatches(heroListing, organizations).find((match) => match.isEligible)
+    : undefined;
 
   // Actual bounded metrics for the compact impact strip (no invented numbers)
   const mealsRedistributed = impactStats?.estimatedMeals !== undefined
     ? Number(impactStats.estimatedMeals).toLocaleString()
     : '—';
 
-  const verifiedPartnersCount = organizations
-    ? organizations.filter((o) => o.verified).length.toString()
+  const partnerCount = organizations
+    ? organizations.length.toString()
     : '—';
 
   const successfulCollectionsCount = impactStats?.deliveredCount !== undefined
@@ -181,11 +163,11 @@ export const LandingPage: React.FC = () => {
                 </button>
               </div>
 
-              {/* Trust badges and secondary demo access */}
+              {/* Trust badges and workspace access */}
               <div className="pt-2 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-stone-500">
                 <div className="flex items-center gap-1.5 font-medium text-stone-700">
                   <ShieldCheck className="w-4 h-4 text-emerald-700 shrink-0" />
-                  <span>Verified NGO Network</span>
+                  <span>Recipient accreditation workflow</span>
                 </div>
                 <div className="flex items-center gap-1.5 font-medium text-stone-700">
                   <Thermometer className="w-4 h-4 text-emerald-700 shrink-0" />
@@ -195,7 +177,7 @@ export const LandingPage: React.FC = () => {
                   onClick={() => setIsRoleModalOpen(true)}
                   className="text-emerald-800 hover:text-emerald-950 font-semibold underline underline-offset-2 flex items-center gap-1 transition-colors cursor-pointer"
                 >
-                  <span>Switch Demo Persona</span>
+                  <span>Switch Workspace</span>
                   <ChevronRight className="w-3.5 h-3.5" />
                 </button>
                 <span className="text-stone-300 hidden sm:inline">&bull;</span>
@@ -238,16 +220,16 @@ export const LandingPage: React.FC = () => {
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-800 uppercase tracking-wider mb-0.5">
                         <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                        <span>Eligible Surplus &bull; Verified Safety Gate</span>
+                        <span>{heroListing ? `Available &bull; Safety: ${heroListing.safetyStatus.replace('_', ' ')}` : 'No eligible listings right now'}</span>
                       </div>
                       <h3 className="font-bold text-stone-900 text-sm sm:text-base leading-snug line-clamp-1">
-                        {heroListing.title}
+                        {heroListing?.title || 'Explore available donations'}
                       </h3>
                     </div>
 
                     <div className="shrink-0 bg-amber-50 border border-amber-200/80 text-amber-900 text-xs font-bold px-2.5 py-1 rounded-lg flex items-center gap-1 shadow-2xs">
                       <Clock className="w-3.5 h-3.5 text-amber-600" />
-                      <span>{heroHoursLeft.toFixed(1)}h left</span>
+                      <span>{heroListing ? `${heroHoursLeft.toFixed(1)}h left` : 'No deadline'}</span>
                     </div>
                   </div>
 
@@ -258,7 +240,7 @@ export const LandingPage: React.FC = () => {
                         Quantity
                       </span>
                       <span className="font-semibold text-stone-800 tabular-nums">
-                        {heroListing.quantity} {heroListing.unit} (~{heroListing.servingsCount} meals)
+                        {heroListing ? `${heroListing.quantity} ${heroListing.unit} (~${heroListing.servingsCount} servings)` : '—'}
                       </span>
                     </div>
                     <div>
@@ -266,7 +248,7 @@ export const LandingPage: React.FC = () => {
                         Thermal Protocol
                       </span>
                       <span className="font-semibold text-stone-800 truncate block">
-                        {heroListing.storageCondition}
+                        {heroListing?.storageCondition || '—'}
                       </span>
                     </div>
                     <div className="col-span-2 sm:col-span-1">
@@ -275,7 +257,7 @@ export const LandingPage: React.FC = () => {
                       </span>
                       <span className="font-semibold text-emerald-800 flex items-center gap-1">
                         <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                        <span className="truncate">Hope Shelter (94% Fit)</span>
+                        <span className="truncate">{heroMatch ? `${heroMatch.recipient.name} (${heroMatch.score}% fit)` : 'No eligible recipient match'}</span>
                       </span>
                     </div>
                   </div>
@@ -283,26 +265,37 @@ export const LandingPage: React.FC = () => {
                   {/* Card Action footer */}
                   <div className="mt-3 flex items-center justify-between gap-2 pt-0.5">
                     <span className="text-[11px] text-stone-500 truncate">
-                      Donor: <strong className="text-stone-800">{heroListing.donorName}</strong>
+                      {heroListing ? <>Donor: <strong className="text-stone-800">{heroListing.donorName}</strong></> : 'Browse available donations'}
                     </span>
                     <div className="flex items-center gap-2 shrink-0">
-                      <button
-                        onClick={() => setActiveDetailDonation(heroListing as any)}
-                        className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-800 transition-colors cursor-pointer"
-                      >
-                        Inspect
-                      </button>
-                      <button
-                        onClick={() => {
-                          setSmartMatchTargetDonation(heroListing as any);
-                          setRole('donor');
-                          setDonorView('smartmatch');
-                        }}
-                        className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[#1b4332] hover:bg-[#143326] text-white flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
-                      >
-                        <Sparkles className="w-3 h-3 text-emerald-300" />
-                        <span>Match Preview</span>
-                      </button>
+                      {heroListing ? (
+                        <>
+                          <button
+                            onClick={() => setActiveDetailDonation(heroListing)}
+                            className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-800 transition-colors cursor-pointer"
+                          >
+                            Inspect
+                          </button>
+                          <button
+                            onClick={() => {
+                              setSmartMatchTargetDonation(heroListing);
+                              setRole('donor');
+                              setDonorView('smartmatch');
+                            }}
+                            className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[#1b4332] hover:bg-[#143326] text-white flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
+                          >
+                            <Sparkles className="w-3 h-3 text-emerald-300" />
+                            <span>Match Preview</span>
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          onClick={() => { setRole('recipient'); setRecipientView('explore'); }}
+                          className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[#1b4332] text-white"
+                        >
+                          Explore
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -318,7 +311,7 @@ export const LandingPage: React.FC = () => {
         <div className="bg-white rounded-2xl border border-stone-200/90 shadow-sm p-4 sm:p-6 bg-gradient-to-r from-white via-[#fcfbf9] to-white">
           <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-stone-200/80 gap-4 md:gap-0">
             
-            {/* Metric 1: Meals Redistributed */}
+            {/* Metric 1: Estimated meals from completed records */}
             <div className="md:px-6 first:pl-0 flex items-center gap-4 py-2 md:py-1">
               <div className="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-200/70 text-emerald-800 flex items-center justify-center shrink-0 shadow-2xs">
                 <UtensilsCrossed className="w-6 h-6 text-emerald-800" />
@@ -328,23 +321,23 @@ export const LandingPage: React.FC = () => {
                   {mealsRedistributed}
                 </div>
                 <div className="text-xs font-semibold text-stone-600 mt-0.5">
-                  Meals Redistributed
+                  Estimated meals from delivered records
                   <span className="text-[11px] font-normal text-stone-400 ml-1">(FAO 0.42 kg/meal)</span>
                 </div>
               </div>
             </div>
 
-            {/* Metric 2: Verified Partners */}
+            {/* Metric 2: Recipient organizations */}
             <div className="md:px-6 flex items-center gap-4 py-2 md:py-1">
               <div className="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-200/70 text-emerald-800 flex items-center justify-center shrink-0 shadow-2xs">
                 <ShieldCheck className="w-6 h-6 text-emerald-800" />
               </div>
               <div>
                 <div className="text-2xl sm:text-3xl font-extrabold text-stone-900 tracking-tight tabular-nums font-sans">
-                  {verifiedPartnersCount}
+                  {partnerCount}
                 </div>
                 <div className="text-xs font-semibold text-stone-600 mt-0.5">
-                  Verified Partners
+                  Recipient Organizations
                   <span className="text-[11px] font-normal text-stone-400 ml-1">(Shelters, NGOs, Kitchens)</span>
                 </div>
               </div>
@@ -470,18 +463,18 @@ export const LandingPage: React.FC = () => {
         </div>
       </section>
 
-      {/* 4. Featured Available Surplus Listings (Interactive Demo Feed) */}
+      {/* 4. Featured available donation listings */}
       <section id="smartmatch-preview" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
           <div>
             <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 text-[11px] font-bold uppercase tracking-wider">
-              <span>Live Available Feed</span>
+              <span>Available Donations</span>
             </div>
             <h2 className="text-2xl font-bold text-stone-900 tracking-tight mt-1">
               Surplus Ready for Immediate Collection
             </h2>
             <p className="text-xs text-stone-500">
-              Interactive surplus batches currently available for verified recipient pickup.
+              Eligible listings available for collection in the current workspace.
             </p>
           </div>
 

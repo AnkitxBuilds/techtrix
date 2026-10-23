@@ -47,31 +47,31 @@ export function evaluateSmartMatches(
     const warnings: string[] = [];
     let isEligible = true;
     let disqualificationReason = '';
+    const disqualify = (reason: string) => {
+      if (isEligible) disqualificationReason = reason;
+      isEligible = false;
+    };
 
     // Hard Gate 1: Recipient must be verified by admin
     if (!org.verified) {
-      isEligible = false;
-      disqualificationReason = 'Recipient verification is pending approval by the Food Safety Desk.';
+      disqualify('Recipient verification is pending approval by the Food Safety Desk.');
     }
 
     // Hard Gate 2: Listing expiration
     if (isExpired) {
-      isEligible = false;
-      disqualificationReason = 'Listing deadline has elapsed. Expired food cannot be redistributed.';
+      disqualify('Listing deadline has elapsed. Expired food cannot be redistributed.');
     }
 
     // Hard Gate 3: Safety status
     if (isBlockedOrFlagged) {
-      isEligible = false;
-      disqualificationReason = donation.safetyStatus === 'needs_review'
+      disqualify(donation.safetyStatus === 'needs_review'
         ? 'Listing is currently flagged for Food Safety Desk manual audit.'
-        : 'Listing is blocked due to non-compliant storage or broken cold-chain.';
+        : 'Listing is blocked due to non-compliant storage or broken cold-chain.');
     }
 
     // Hard Gate 4: Completeness of listing
     if (!isComplete) {
-      isEligible = false;
-      disqualificationReason = 'Listing data is incomplete; missing critical storage or pickup information.';
+      disqualify('Listing data is incomplete; missing critical storage or pickup information.');
     }
 
     // Hard Gate 5: Storage compatibility
@@ -79,8 +79,7 @@ export function evaluateSmartMatches(
     if (!orgHasStorage) {
       // Ambient can sometimes be accepted by any org, but hot-hold or frozen requires exact equipment
       if (donation.storageCondition === 'Frozen (<-18°C)' || donation.storageCondition === 'Hot-hold (>60°C)') {
-        isEligible = false;
-        disqualificationReason = `Recipient lacks certified ${donation.storageCondition} equipment.`;
+        disqualify(`Recipient lacks certified ${donation.storageCondition} equipment.`);
       } else {
         warnings.push(`Recipient does not list primary ${donation.storageCondition} capability.`);
       }
@@ -90,23 +89,21 @@ export function evaluateSmartMatches(
     const estKg = calculateEstimatedKg(donation.quantity, donation.unit, donation.servingsCount);
     const remainingCap = Math.max(0, org.maxDailyCapacityKg - org.currentDailyAllocatedKg);
     if (estKg > remainingCap) {
-      isEligible = false;
-      disqualificationReason = `Batch size (${estKg} kg) exceeds recipient's remaining daily capacity (${remainingCap} kg).`;
+      disqualify(`Batch size (${estKg} kg) exceeds recipient's remaining daily capacity (${remainingCap} kg).`);
     }
 
-    // Simulated distance calculation based on deterministic offsets
+    // Estimated route distance from the illustrative service-area model.
     const distanceKm = Number((3.2 + (index * 2.3) % 8.5).toFixed(1));
     const estimatedTransitMinutes = Math.round(distanceKm * 3.5 + 10);
 
     // Hard Gate 7: Pickup window feasibility
     if (hoursRemaining * 60 < estimatedTransitMinutes + 25) {
-      isEligible = false;
-      disqualificationReason = `Pickup window too tight (${Math.round(hoursRemaining * 60)}m left vs ~${estimatedTransitMinutes + 25}m required transit & packaging time).`;
+      disqualify(`Pickup window too tight (${Math.round(hoursRemaining * 60)}m left vs ~${estimatedTransitMinutes + 25}m required transit & packaging time).`);
     }
 
     // If ineligible, score is 0
     if (!isEligible) {
-      warnings.push('Distance calculated using sample baseline coordinates.');
+      warnings.push('Distance and transit time are estimates from illustrative route data.');
       return {
         recipient: org,
         score: 0,
@@ -122,7 +119,9 @@ export function evaluateSmartMatches(
 
     // Passed all gates! Now compute granular ranking score (0-100)
     let score = 30; // Baseline for passing all hard safety & capacity gates
-    eligibilityReasons.push('Verified organization with active health authority accreditation');
+    eligibilityReasons.push(org.isIllustrative
+      ? 'Illustrative eligibility state passed the recipient verification gate'
+      : 'Recipient is marked verified in the active platform records');
     eligibilityReasons.push('Meets mandatory food safety and thermal preservation protocols');
 
     // 1. Proximity score (up to 25 pts)
@@ -165,7 +164,13 @@ export function evaluateSmartMatches(
       rankReasons.push(`Dedicated transport fleet (${org.transportVehicles[0]})`);
     }
 
-    warnings.push('Note: Route distance and transit minutes are calculated using sample demo coordinates.');
+    const pickupMarginMinutes = Math.round(hoursRemaining * 60) - estimatedTransitMinutes - 25;
+    rankReasons.push(`Estimated pickup fits the deadline with about ${pickupMarginMinutes} minutes of handling margin`);
+    if (hoursRemaining <= 3) {
+      rankReasons.push('Short collection window; prioritize dispatch promptly');
+    }
+
+    warnings.push('Distance and transit time are estimates from illustrative route data, not live GPS.');
 
     return {
       recipient: org,

@@ -105,7 +105,10 @@ export const ExploreDonations: React.FC = () => {
   }, [donations, searchTerm, selectedCategory, dietaryFilter, urgencyFilter, sortBy]);
 
   const availableCount = filteredDonations.filter(
-    (d) => d.status === 'available' && d.safetyStatus === 'eligible'
+    (d) =>
+      d.status === 'available' &&
+      d.safetyStatus === 'eligible' &&
+      new Date(d.deadlineAt).getTime() > Date.now()
   ).length;
 
   return (

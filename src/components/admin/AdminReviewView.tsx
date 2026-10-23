@@ -24,6 +24,8 @@ export const AdminReviewView: React.FC = () => {
     adminView,
     setAdminView,
     setActiveDetailDonation,
+    firebaseUser,
+    userProfile,
   } = useApp();
 
   const [activeTab, setActiveTab] = useState<'listings' | 'ngos' | 'audit'>('listings');
@@ -31,6 +33,10 @@ export const AdminReviewView: React.FC = () => {
   // Flagged or questionable donations
   const flaggedDonations = donations.filter((d) => d.safetyStatus !== 'eligible');
   const allEligibleCount = donations.filter((d) => d.safetyStatus === 'eligible').length;
+  const traceabilityPercent = donations.length
+    ? Math.round((donations.filter((d) => d.statusHistory.length > 0).length / donations.length) * 100)
+    : 0;
+  const isAuthorizedReviewer = Boolean(firebaseUser && userProfile?.role === 'admin');
 
   // Unverified & verified NGOs
   const unverifiedOrgs = organizations.filter((o) => !o.verified);
@@ -67,9 +73,12 @@ export const AdminReviewView: React.FC = () => {
           </p>
         </div>
 
-        {/* Demo Disclaimer badge */}
-        <div className="bg-stone-100 border border-stone-200 text-stone-600 text-xs px-3 py-1.5 rounded-lg">
-          Protected Role Demo (Firebase RBAC Ready)
+        <div className={`border text-xs px-3 py-1.5 rounded-lg ${
+          isAuthorizedReviewer
+            ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+            : 'bg-amber-50 border-amber-200 text-amber-900'
+        }`}>
+          {isAuthorizedReviewer ? 'Firebase-authorized reviewer' : 'Local reviewer preview'}
         </div>
       </div>
 
@@ -274,7 +283,7 @@ export const AdminReviewView: React.FC = () => {
           {/* Active Verified NGOs */}
           <div className="space-y-3 pt-4 border-t border-stone-200">
             <h3 className="font-bold text-stone-800 text-xs uppercase tracking-wider">
-              Accredited Organizations ({verifiedOrgs.length})
+              Organizations Marked Eligible ({verifiedOrgs.length})
             </h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -287,7 +296,7 @@ export const AdminReviewView: React.FC = () => {
                     <div className="font-bold text-stone-900">{org.name}</div>
                     <span className="text-[10px] font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded flex items-center gap-1">
                       <ShieldCheck className="w-3 h-3 text-emerald-700" />
-                      {org.verificationNumber}
+                      {org.isIllustrative ? 'Illustrative eligibility state' : org.verificationNumber}
                     </span>
                   </div>
                   <div className="text-stone-500">{org.type} • {org.serviceArea}</div>
@@ -324,7 +333,7 @@ export const AdminReviewView: React.FC = () => {
             </div>
 
             <div className="p-4 bg-stone-50 rounded-xl border border-stone-200">
-              <div className="text-2xl font-bold text-stone-900">100%</div>
+              <div className="text-2xl font-bold text-stone-900">{traceabilityPercent}%</div>
               <div className="text-xs text-stone-600 mt-1">Traceability Adherence</div>
             </div>
           </div>

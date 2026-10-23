@@ -3,7 +3,7 @@ import { X, Scale, Leaf, HeartHandshake, Info, ShieldAlert, CheckCircle2 } from 
 import { useApp } from '../../context/AppContext';
 
 export const ImpactModal: React.FC = () => {
-  const { isImpactModalOpen, setIsImpactModalOpen, impactStats } = useApp();
+  const { isImpactModalOpen, setIsImpactModalOpen, impactStats, firebaseUser } = useApp();
 
   if (!isImpactModalOpen) return null;
 
@@ -15,10 +15,10 @@ export const ImpactModal: React.FC = () => {
           <div>
             <div className="flex items-center gap-2">
               <Scale className="w-5 h-5 text-emerald-300" />
-              <h2 className="text-lg font-bold tracking-tight">Impact Estimation Methodology</h2>
+              <h2 className="text-lg font-bold tracking-tight">Data &amp; Impact</h2>
             </div>
             <p className="text-emerald-100/80 text-xs mt-1">
-              Derived mathematically from local prototype data records.
+              Counts reflect records in the current workspace; estimates are calculated from recorded status and quantity.
             </p>
           </div>
           <button
@@ -29,11 +29,14 @@ export const ImpactModal: React.FC = () => {
           </button>
         </div>
 
-        {/* Prototype context banner */}
+        {/* Data and access disclosure */}
         <div className="bg-amber-50 border-b border-amber-200 px-6 py-3 flex items-start gap-2.5 text-xs text-amber-950">
           <ShieldAlert className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
           <div>
-            <strong className="font-semibold">Sample Data Disclaimer:</strong> All metrics shown in this prototype reflect the current in-memory listings and demo actions. They demonstrate calculation logic and are not claims of real-world historical deliveries.
+            <strong className="font-semibold">Illustrative records:</strong>{' '}
+            {firebaseUser
+              ? 'Sample names, workflow verification states, and route estimates are illustrative only; they are not real-world accreditation, live GPS, or delivery claims. Authenticated Firebase records remain separate from local sample records.'
+              : 'This local workspace contains illustrative organizations and donation records. Verification states and histories demonstrate workflows only, not real accreditation or completed real-world collections. Distances and arrival times are estimates, not live GPS.'}
           </div>
         </div>
 
@@ -43,7 +46,7 @@ export const ImpactModal: React.FC = () => {
           <div className="grid grid-cols-3 gap-3 p-4 bg-stone-50 rounded-xl border border-stone-200 text-center">
             <div>
               <div className="text-2xl font-bold text-stone-900">{impactStats.totalKgSaved} kg</div>
-              <div className="text-[11px] text-stone-500 font-medium mt-0.5">Surplus Food Tracked</div>
+              <div className="text-[11px] text-stone-500 font-medium mt-0.5">Delivered food</div>
             </div>
             <div>
               <div className="text-2xl font-bold text-emerald-800">~{impactStats.estimatedMeals}</div>
@@ -51,7 +54,7 @@ export const ImpactModal: React.FC = () => {
             </div>
             <div>
               <div className="text-2xl font-bold text-emerald-700">~{impactStats.co2eDivertedKg} kg</div>
-              <div className="text-[11px] text-stone-500 font-medium mt-0.5">CO₂e Avoided</div>
+              <div className="text-[11px] text-stone-500 font-medium mt-0.5">Estimated CO₂e equivalent</div>
             </div>
           </div>
 
@@ -88,7 +91,7 @@ export const ImpactModal: React.FC = () => {
                 3. Qualification Criteria
               </h4>
               <p className="leading-relaxed">
-                Only donations that have been accepted, scheduled, picked up, or confirmed delivered are counted towards diverted impact. Listings that expire without collection or are blocked due to safety violations are excluded.
+                The delivered-food figure uses donations marked delivered in the current workspace. Meal and CO₂e values are estimates based on that quantity; pending, expired, cancelled, and safety-blocked listings are excluded.
               </p>
             </div>
           </div>

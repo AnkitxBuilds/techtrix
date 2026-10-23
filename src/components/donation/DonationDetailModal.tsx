@@ -306,7 +306,7 @@ export const DonationDetailModal: React.FC = () => {
                 </div>
                 <div className="flex items-center gap-1 text-[11px] text-stone-500 pt-1">
                   <Navigation className="w-3.5 h-3.5 text-stone-400" />
-                  <span>Sample proximity: ~{donation.sampleDistanceKm || 4.2} km from central hub</span>
+                  <span>Estimated distance: ~{donation.sampleDistanceKm || 4.2} km</span>
                 </div>
               </div>
             </div>

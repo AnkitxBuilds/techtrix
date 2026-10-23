@@ -26,6 +26,45 @@ function assert(condition: boolean, message: string) {
   }
 }
 
+console.log('\n--- 0. Testing Local Illustrative Dataset Integrity ---');
+{
+  const donorIds = new Set(SAMPLE_DONORS.map((donor) => donor.id));
+  const recipientIds = new Set(SAMPLE_ORGANIZATIONS.map((recipient) => recipient.id));
+  const activeCollectionStatuses = ['accepted', 'pickup_scheduled', 'picked_up'];
+  const eligibleListings = INITIAL_DONATIONS.filter((donation) =>
+    donation.status === 'available' &&
+    donation.safetyStatus === 'eligible' &&
+    new Date(donation.deadlineAt).getTime() > Date.now()
+  );
+
+  assert(SAMPLE_DONORS.length === 6, `Six illustrative donor profiles are present -> got ${SAMPLE_DONORS.length}`);
+  assert(SAMPLE_ORGANIZATIONS.length === 7, `Seven illustrative recipient organizations are present -> got ${SAMPLE_ORGANIZATIONS.length}`);
+  assert(INITIAL_DONATIONS.length === 15, `Fifteen local donation records are present -> got ${INITIAL_DONATIONS.length}`);
+  assert(INITIAL_DONATIONS.every((donation) => donorIds.has(donation.donorId)), 'Every donation references an existing donor');
+  assert(
+    INITIAL_DONATIONS.every((donation) =>
+      !donation.acceptedByOrgId || recipientIds.has(donation.acceptedByOrgId)
+    ),
+    'Every claimed donation references an existing recipient'
+  );
+  assert(
+    INITIAL_DONATIONS.every((donation) =>
+      donation.statusHistory.at(-1)?.status === donation.status
+    ),
+    'Each donation history ends at its current lifecycle status'
+  );
+  assert(
+    INITIAL_DONATIONS.filter((donation) => activeCollectionStatuses.includes(donation.status)).length === 4,
+    'Four collections remain accepted, scheduled, or picked up'
+  );
+  assert(
+    eligibleListings.some((donation) =>
+      evaluateSmartMatches(donation, SAMPLE_ORGANIZATIONS).some((match) => match.isEligible)
+    ),
+    'At least one current eligible listing has an eligible SmartMatch recommendation'
+  );
+}
+
 console.log('\n--- 1. Testing Standardized Quantity and Impact Conversion Formulas ---');
 {
   // 1 kg = ~2.38 servings (Math.round(1 / 0.42) = 2)
@@ -110,6 +149,21 @@ console.log('\n--- 2. Testing SmartMatch Deterministic 6-Point Eligibility Pipel
   const flaggedResults = evaluateSmartMatches(flaggedListing, SAMPLE_ORGANIZATIONS);
   const anyFlaggedEligible = flaggedResults.some((r) => r.isEligible);
   assert(!anyFlaggedEligible, 'Gate 3: Listing pending safety review is disqualified from matching');
+
+  const blockedNearDeadline = evaluateSmartMatches(
+    {
+      ...testListing,
+      safetyStatus: 'blocked',
+      deadlineAt: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+    },
+    SAMPLE_ORGANIZATIONS.filter((organization) => organization.verified)
+  );
+  assert(
+    blockedNearDeadline.every((result) =>
+      result.disqualificationReason?.includes('Listing is blocked')
+    ),
+    'Blocked safety status remains the primary reason when pickup time also fails'
+  );
 
   // Check Gate 4: Incomplete listing (missing pickup address or quantity 0)
   const incompleteListing: FoodDonation = {

@@ -13,7 +13,7 @@ import {
 } from '../types';
 import { SAMPLE_DONORS, SAMPLE_ORGANIZATIONS, INITIAL_DONATIONS } from '../data/mockData';
 import { calculateServings, calculateEstimatedKg, calculateCo2eAvoided } from '../services/quantityUtils';
-import { auth, db, testFirestoreConnection } from '../services/firebase';
+import { auth, db } from '../services/firebase';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import {
   UserProfileDoc,
@@ -22,13 +22,11 @@ import {
   registerWithEmail,
   loginWithGoogle,
   logoutUser,
-  getActiveSession,
 } from '../services/authService';
 import {
   subscribeDonations,
   subscribeOrganizations,
   subscribeDonors,
-  seedInitialDataIfEmpty,
   claimDonationAtomic,
   advanceDonationStageAtomic,
   cancelDonationAtomic,
@@ -80,9 +78,7 @@ interface AppContextType {
   isImpactModalOpen: boolean;
   setIsImpactModalOpen: (open: boolean) => void;
 
-  // Firebase Auth & Cloud status
-  isCloudMode: boolean;
-  setIsCloudMode: (cloud: boolean) => void;
+  // Firebase Auth status
   firebaseUser: FirebaseUser | { uid: string; email: string | null; displayName?: string | null } | null;
   userProfile: UserProfileDoc | null;
   authLoading: boolean;
@@ -112,7 +108,6 @@ interface AppContextType {
   updateOrgProfile: (updates: Partial<Organization>) => void;
 
   impactStats: ImpactStats;
-  resetDemoData: () => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -120,8 +115,32 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 const LOCAL_STORAGE_KEY = 'foodbridge_demo_donations_v1';
 const LOCAL_STORAGE_ORGS_KEY = 'foodbridge_demo_orgs_v1';
 
+function loadLocalRecords<T extends { id: string }>(key: string, seed: T[]): T[] {
+  try {
+    const stored = localStorage.getItem(key);
+    if (stored) {
+      const records = JSON.parse(stored) as T[];
+      const storedIds = new Set(records.map((record) => record.id));
+      const seedById = new Map(seed.map((record) => [record.id, record]));
+      const migratedRecords = records.map((record) => {
+        const seeded = seedById.get(record.id) as (T & Partial<Organization>) | undefined;
+        if (!seeded?.isIllustrative) return record;
+        return {
+          ...record,
+          isIllustrative: true,
+          verificationNumber: seeded.verificationNumber,
+        } as T;
+      });
+      return [...migratedRecords, ...seed.filter((record) => !storedIds.has(record.id))];
+    }
+  } catch {
+    // Use the bundled local records when stored data is unavailable.
+  }
+  return JSON.parse(JSON.stringify(seed)) as T[];
+}
+
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [role, setRole] = useState<UserRole>('landing');
+  const [role, setRoleState] = useState<UserRole>('landing');
   const [donorView, setDonorView] = useState<DonorView>('overview');
   const [recipientView, setRecipientView] = useState<RecipientView>('overview');
   const [adminView, setAdminView] = useState<AdminView>('safety_review');
@@ -129,29 +148,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [donors, setDonors] = useState<DonorProfile[]>(SAMPLE_DONORS);
   const [currentDonor, setCurrentDonor] = useState<DonorProfile>(SAMPLE_DONORS[0]);
 
-  // Load organizations
-  const [organizations, setOrganizations] = useState<Organization[]>(() => {
-    try {
-      const stored = localStorage.getItem(LOCAL_STORAGE_ORGS_KEY);
-      if (stored) return JSON.parse(stored);
-    } catch {
-      // ignore
-    }
-    return JSON.parse(JSON.stringify(SAMPLE_ORGANIZATIONS));
-  });
+  const [organizations, setOrganizations] = useState<Organization[]>(() =>
+    loadLocalRecords(LOCAL_STORAGE_ORGS_KEY, SAMPLE_ORGANIZATIONS)
+  );
 
   const [currentRecipient, setCurrentRecipient] = useState<Organization>(organizations[0]);
 
-  // Load donations with shared local state
-  const [donations, setDonations] = useState<FoodDonation[]>(() => {
-    try {
-      const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
-      if (stored) return JSON.parse(stored);
-    } catch {
-      // ignore
-    }
-    return JSON.parse(JSON.stringify(INITIAL_DONATIONS));
-  });
+  const [donations, setDonations] = useState<FoodDonation[]>(() =>
+    loadLocalRecords(LOCAL_STORAGE_KEY, INITIAL_DONATIONS)
+  );
 
   const [selectedDonationId, setSelectedDonationId] = useState<string | null>(null);
   const [activeDetailDonation, setActiveDetailDonation] = useState<FoodDonation | null>(null);
@@ -168,7 +173,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   >(null);
   const [userProfile, setUserProfile] = useState<UserProfileDoc | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const [isCloudMode, setIsCloudMode] = useState(true); // Default to live Firestore sync
 
   const addToast = (toast: Omit<ToastNotification, 'id'>) => {
     const id = `toast-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
@@ -182,32 +186,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
 
-  // Restore stored session on mount & listen to Firebase Auth
-  useEffect(() => {
-    // 1. Check for stored active session in localStorage
-    const activeSession = getActiveSession();
-    if (activeSession) {
-      setUserProfile(activeSession);
-      setFirebaseUser({
-        uid: activeSession.id,
-        email: activeSession.email,
-        displayName: activeSession.displayName || null,
+  const setRole = (nextRole: UserRole) => {
+    if (auth.currentUser && nextRole !== 'landing' && nextRole !== userProfile?.role) {
+      addToast({
+        type: 'error',
+        title: 'Workspace Not Authorized',
+        message: 'Your Firebase account can only open its assigned workspace.',
       });
-      setRole(activeSession.role);
-      if (activeSession.role === 'donor') {
-        const matched = donors.find(
-          (d) => d.id === activeSession.entityId || d.name === activeSession.orgName
-        );
-        if (matched) setCurrentDonor(matched);
-      } else if (activeSession.role === 'recipient') {
-        const matched = organizations.find(
-          (o) => o.id === activeSession.entityId || o.name === activeSession.orgName
-        );
-        if (matched) setCurrentRecipient(matched);
-      }
+      return;
     }
+    setRoleState(nextRole);
+  };
 
-    // 2. Listen to real Firebase Auth state changes
+  // Firebase Auth is the source of truth for authenticated sessions.
+  useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         setFirebaseUser(user);
@@ -215,7 +207,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           const profile = await getUserProfile(user.uid);
           if (profile) {
             setUserProfile(profile);
-            setRole(profile.role);
+            setRoleState(profile.role);
             if (profile.role === 'donor' && profile.entityId) {
               const matchedDonor = donors.find((d) => d.id === profile.entityId);
               if (matchedDonor) setCurrentDonor(matchedDonor);
@@ -228,45 +220,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           // fallback
         }
       } else {
-        const currentActive = getActiveSession();
-        if (!currentActive) {
-          setFirebaseUser(null);
-          setUserProfile(null);
-        }
+        setFirebaseUser(null);
+        setUserProfile(null);
+        setDonors(SAMPLE_DONORS);
+        setOrganizations(loadLocalRecords(LOCAL_STORAGE_ORGS_KEY, SAMPLE_ORGANIZATIONS));
+        setDonations(loadLocalRecords(LOCAL_STORAGE_KEY, INITIAL_DONATIONS));
       }
       setAuthLoading(false);
     });
 
     return () => unsubscribe();
-  }, [donors, organizations]);
+  }, []);
 
   // Connect to Cloud Firestore & Listen to real-time changes if in Cloud Mode
   useEffect(() => {
-    if (!isCloudMode) return;
-
-    // Test connection & seed initial demo data if Firestore is empty
-    testFirestoreConnection().then((connected) => {
-      if (connected) {
-        seedInitialDataIfEmpty();
-      }
-    });
+    if (!auth.currentUser) return;
 
     const unsubDonations = subscribeDonations((cloudDonations) => {
-      if (cloudDonations.length > 0) {
-        setDonations(cloudDonations);
-      }
+      setDonations(cloudDonations);
     });
 
     const unsubOrgs = subscribeOrganizations((cloudOrgs) => {
-      if (cloudOrgs.length > 0) {
-        setOrganizations(cloudOrgs);
-      }
+      setOrganizations(cloudOrgs);
+      setCurrentRecipient((current) => cloudOrgs.find((org) => org.id === current.id) || current);
     });
 
     const unsubDonors = subscribeDonors((cloudDonors) => {
-      if (cloudDonors.length > 0) {
-        setDonors(cloudDonors);
-      }
+      setDonors(cloudDonors);
     });
 
     return () => {
@@ -274,10 +254,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       unsubOrgs();
       unsubDonors();
     };
-  }, [isCloudMode]);
+  }, [firebaseUser]);
 
   // Sync to localStorage as local fallback
   useEffect(() => {
+    if (auth.currentUser) return;
     try {
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(donations));
     } catch {
@@ -286,6 +267,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [donations]);
 
   useEffect(() => {
+    if (auth.currentUser) return;
     try {
       localStorage.setItem(LOCAL_STORAGE_ORGS_KEY, JSON.stringify(organizations));
     } catch {
@@ -303,7 +285,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         email: profile.email,
         displayName: profile.displayName || null,
       });
-      setRole(profile.role);
+      setRoleState(profile.role);
       if (profile.role === 'donor') {
         setDonorView('overview');
         const matched = donors.find(
@@ -319,7 +301,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             area: 'Central Commercial Zone',
             contactPerson: profile.displayName || 'Establishment Manager',
             contactPhone: '+91 98000 12345',
-            verified: true,
+            verified: false,
           };
           setDonors((prev) => [newDonor, ...prev]);
           setCurrentDonor(newDonor);
@@ -335,8 +317,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             id: profile.id,
             name: profile.orgName,
             type: 'Shelter',
-            verified: true,
-            verificationNumber: `NGO-${Date.now().toString().slice(-4)}`,
+            verified: false,
+            verificationNumber: `PENDING-${Date.now().toString().slice(-4)}`,
             address: 'City Community Center',
             serviceArea: 'Central Metro',
             maxDailyCapacityKg: 100,
@@ -349,6 +331,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             operatingHours: '8:00 AM - 10:00 PM',
             refrigeratedVanAvailable: true,
           };
+          await setDoc(doc(db, 'organizations', newOrg.id), newOrg);
           setOrganizations((prev) => [newOrg, ...prev]);
           setCurrentRecipient(newOrg);
         }
@@ -380,7 +363,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         email: profile.email,
         displayName: profile.displayName || null,
       });
-      setRole(profile.role);
+      setRoleState(profile.role);
       if (profile.role === 'donor') {
         setDonorView('overview');
         if (orgName) {
@@ -392,7 +375,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             area: 'Metro Central',
             contactPerson: name || 'Manager',
             contactPhone: '+91 98111 22334',
-            verified: true,
+            verified: false,
           };
           setDonors((prev) => [newDonor, ...prev]);
           setCurrentDonor(newDonor);
@@ -404,8 +387,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             id: profile.id,
             name: orgName,
             type: 'Shelter',
-            verified: true,
-            verificationNumber: `NGO-${Date.now().toString().slice(-4)}`,
+            verified: false,
+            verificationNumber: `PENDING-${Date.now().toString().slice(-4)}`,
             address: 'Community Support Center',
             serviceArea: 'Central Metro',
             maxDailyCapacityKg: 100,
@@ -418,6 +401,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             operatingHours: '8:00 AM - 10:00 PM',
             refrigeratedVanAvailable: true,
           };
+          await setDoc(doc(db, 'organizations', newOrg.id), newOrg);
           setOrganizations((prev) => [newOrg, ...prev]);
           setCurrentRecipient(newOrg);
         }
@@ -440,7 +424,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         email: profile.email,
         displayName: profile.displayName || null,
       });
-      setRole(profile.role);
+      setRoleState(profile.role);
       if (profile.role === 'donor') {
         setDonorView('overview');
       } else if (profile.role === 'recipient') {
@@ -498,7 +482,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       ],
     };
 
-    if (isCloudMode) {
+    if (auth.currentUser) {
       setDoc(doc(db, 'donations', id), newDonation).catch((err) => {
         console.warn('Firestore write warning:', err);
       });
@@ -606,20 +590,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const driverName = driver || 'Staff Volunteer Team';
     const vehicleName = vehicle || currentRecipient.transportVehicles[0] || 'Standard Transport';
 
-    // If Cloud Mode, attempt atomic Firestore transaction as best-effort sync.
-    // A Firestore failure (offline / permission errors) should NOT block the local state update —
-    // local state is the source of truth for the current session and must always reflect the claim.
-    if (isCloudMode) {
-      claimDonationAtomic(donationId, currentRecipient, pickupSchedule, driverName, vehicleName)
-        .then((result) => {
-          if (!result.success) {
-            // Silently note the sync issue but do NOT revert local state
-            console.warn('[FoodBridge] Firestore sync skipped for claim:', result.message);
-          }
-        })
-        .catch((err) => {
-          console.warn('[FoodBridge] Firestore claim sync error:', err);
+    // A cloud claim must succeed before reporting success so other sessions see the same state.
+    if (auth.currentUser) {
+      const result = await claimDonationAtomic(
+        donationId,
+        currentRecipient,
+        pickupSchedule,
+        driverName,
+        vehicleName
+      );
+      if (!result.success) {
+        addToast({
+          type: 'error',
+          title: 'Claim Not Saved',
+          message: result.message,
         });
+        return false;
+      }
     }
 
     // Update local state
@@ -717,7 +704,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       note = `Safely delivered to destination kitchen. Ready for immediate hot meal service / pantry allotment.`;
     }
 
-    if (isCloudMode) {
+    if (auth.currentUser) {
       await advanceDonationStageAtomic(target, nextStatus, actor, note);
     }
 
@@ -766,7 +753,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return false;
     }
 
-    if (isCloudMode) {
+    if (auth.currentUser) {
       await cancelDonationAtomic(target, reason);
     }
 
@@ -819,7 +806,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Food Safety review by admin
   const reviewDonationSafety = (donationId: string, newSafety: SafetyStatus, notes: string) => {
     const nowIso = new Date().toISOString();
-    if (isCloudMode) {
+    if (auth.currentUser && userProfile?.role === 'admin') {
       setDoc(doc(db, 'donations', donationId), { safetyStatus: newSafety, safetyReviewNotes: notes, updatedAt: nowIso }, { merge: true }).catch(() => {});
     }
 
@@ -856,7 +843,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const updatedNumber = verified ? `NGO-VERIF-${Math.floor(1000 + Math.random() * 9000)}` : undefined;
     const nowIso = new Date().toISOString();
 
-    if (isCloudMode) {
+    if (auth.currentUser && userProfile?.role === 'admin') {
       setDoc(doc(db, 'organizations', orgId), { verified, verificationNumber: updatedNumber, updatedAt: nowIso }, { merge: true }).catch(() => {});
     }
 
@@ -892,7 +879,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Update Org Profile
   const updateOrgProfile = (updates: Partial<Organization>) => {
-    if (isCloudMode) {
+    if (auth.currentUser && userProfile?.role === 'recipient') {
       setDoc(doc(db, 'organizations', currentRecipient.id), { ...updates, updatedAt: new Date().toISOString() }, { merge: true }).catch(() => {});
     }
 
@@ -907,37 +894,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   };
 
-  // Reset to pristine default demo data without leaving stale records
-  const resetDemoData = () => {
-    const freshDonations: FoodDonation[] = JSON.parse(JSON.stringify(INITIAL_DONATIONS));
-    const freshOrgs: Organization[] = JSON.parse(JSON.stringify(SAMPLE_ORGANIZATIONS));
-    setDonations(freshDonations);
-    setOrganizations(freshOrgs);
-    setCurrentDonor(SAMPLE_DONORS[0]);
-    setCurrentRecipient(freshOrgs[0]);
-    setSelectedDonationId(null);
-    setActiveDetailDonation(null);
-    setSmartMatchTargetDonation(null);
-    localStorage.removeItem(LOCAL_STORAGE_KEY);
-    localStorage.removeItem(LOCAL_STORAGE_ORGS_KEY);
-    addToast({
-      type: 'info',
-      title: 'Demo Data Reset',
-      message: 'Reloaded pristine sample records and verification states.',
-    });
-  };
-
   // Derive Impact metrics directly from actual shared data
   const impactStats = useMemo<ImpactStats>(() => {
-    const availableCount = donations.filter((d) => d.status === 'available' && d.safetyStatus === 'eligible').length;
+    const availableCount = donations.filter((d) =>
+      d.status === 'available' &&
+      d.safetyStatus === 'eligible' &&
+      new Date(d.deadlineAt).getTime() > Date.now()
+    ).length;
     const pendingCount = donations.filter((d) => ['accepted', 'pickup_scheduled', 'picked_up'].includes(d.status)).length;
     const deliveredCount = donations.filter((d) => d.status === 'delivered').length;
 
-    const redistributedDonations = donations.filter((d) =>
-      ['accepted', 'pickup_scheduled', 'picked_up', 'delivered'].includes(d.status)
-    );
+    const deliveredDonations = donations.filter((d) => d.status === 'delivered');
 
-    const totalKgSaved = redistributedDonations.reduce((sum, d) => {
+    const totalKgSaved = deliveredDonations.reduce((sum, d) => {
       return sum + calculateEstimatedKg(d.quantity, d.unit, d.servingsCount);
     }, 0);
 
@@ -990,8 +959,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setIsAuthModalOpen,
         isImpactModalOpen,
         setIsImpactModalOpen,
-        isCloudMode,
-        setIsCloudMode,
         firebaseUser,
         userProfile,
         authLoading,
@@ -1010,7 +977,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         verifyOrgByAdmin,
         updateOrgProfile,
         impactStats,
-        resetDemoData,
       }}
     >
       {children}

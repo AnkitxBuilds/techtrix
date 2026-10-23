@@ -260,16 +260,16 @@ export const TrackingView: React.FC = () => {
           </div>
         </div>
 
-        {/* Route visualization mockup */}
+        {/* Estimated route summary */}
         <div className="bg-stone-100/70 rounded-xl p-4 border border-stone-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-stone-600">
           <div className="flex items-center gap-2">
             <Navigation className="w-4 h-4 text-emerald-800 shrink-0" />
             <div>
-              <strong className="text-stone-800">Sample Transit Corridor:</strong> ~{donation.sampleDistanceKm || 3.8} km distance (~18 min average turnaround).
+              <strong className="text-stone-800">Estimated route:</strong> ~{donation.sampleDistanceKm || 3.8} km; travel time is an estimate, not live GPS.
             </div>
           </div>
           <span className="text-[11px] text-stone-400 bg-white px-2 py-0.5 rounded border border-stone-200 shrink-0">
-            Sample Route Simulation
+            No live location tracking
           </span>
         </div>
 

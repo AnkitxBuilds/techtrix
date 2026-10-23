@@ -38,13 +38,19 @@ export const RecipientDashboard: React.FC = () => {
     return donations.filter((d) => {
       if (!d.acceptedByOrgId && !d.acceptedByOrgName) return false;
       return (
+        ['accepted', 'pickup_scheduled', 'picked_up', 'delivered'].includes(d.status) &&
+        (
         d.acceptedByOrgId === currentRecipient.id ||
         d.acceptedByOrgName === currentRecipient.name ||
         (d.acceptedByOrgName && currentRecipient.name &&
           d.acceptedByOrgName.toLowerCase() === currentRecipient.name.toLowerCase())
+        )
       );
     });
   }, [donations, currentRecipient]);
+
+  const activePickups = myAcceptedDonations.filter((donation) => donation.status !== 'delivered');
+  const completedPickups = myAcceptedDonations.filter((donation) => donation.status === 'delivered');
 
   // Urgent available donations (< 3 hours)
   const urgentAvailable = useMemo(() => {
@@ -126,7 +132,11 @@ export const RecipientDashboard: React.FC = () => {
               <div>
                 <div className="flex items-center gap-2">
                   <h2 className="text-xl font-bold text-stone-900">{currentRecipient.name}</h2>
-                  {currentRecipient.verified ? (
+                  {currentRecipient.isIllustrative ? (
+                    <span className="text-xs font-semibold bg-stone-100 text-stone-700 px-2 py-0.5 rounded">
+                      Illustrative eligibility state
+                    </span>
+                  ) : currentRecipient.verified ? (
                     <span className="text-xs font-semibold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded flex items-center gap-1">
                       <ShieldCheck className="w-3.5 h-3.5" />
                       Verified NGO ({currentRecipient.verificationNumber})
@@ -233,10 +243,10 @@ export const RecipientDashboard: React.FC = () => {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <span className="text-xs font-bold uppercase tracking-wider text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded">
-              Active Commitments
+              Collection History
             </span>
             <h1 className="text-2xl sm:text-3xl font-bold text-stone-900 tracking-tight mt-1">
-              My Accepted Pickups
+              My Collections
             </h1>
             <p className="text-xs sm:text-sm text-stone-500">
               Coordinated collections for <strong>{currentRecipient.name}</strong>.
@@ -432,7 +442,7 @@ export const RecipientDashboard: React.FC = () => {
 
         {/* Facilities badge row */}
         <div className="pt-2 flex flex-wrap items-center gap-2 text-xs">
-          <span className="text-stone-500">Certified facilities:</span>
+              <span className="text-stone-500">Listed handling capabilities:</span>
           {currentRecipient.storageCapabilities.map((sc) => (
             <span key={sc} className="bg-stone-100 text-stone-800 px-2 py-0.5 rounded font-medium">
               ✓ {sc}
@@ -498,8 +508,8 @@ export const RecipientDashboard: React.FC = () => {
       {/* Active Pickups in Progress Overview */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="font-bold text-stone-900 text-base">
-            Active Coordinated Pickups ({myAcceptedDonations.length})
+            <h3 className="font-bold text-stone-900 text-base">
+            Active Coordinated Pickups ({activePickups.length})
           </h3>
           <button
             onClick={() => setRecipientView('accepted')}
@@ -510,13 +520,13 @@ export const RecipientDashboard: React.FC = () => {
           </button>
         </div>
 
-        {myAcceptedDonations.length === 0 ? (
+        {activePickups.length === 0 ? (
           <div className="bg-white rounded-2xl border border-stone-200 p-6 text-center text-xs text-stone-500">
             No accepted pickups in progress. Head over to <strong>Explore Donations</strong> to claim surplus batches.
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {myAcceptedDonations.map((d) => (
+            {activePickups.map((d) => (
               <div
                 key={d.id}
                 className="bg-white rounded-2xl border border-stone-200 p-4 shadow-xs flex flex-col justify-between space-y-3"
@@ -563,6 +573,27 @@ export const RecipientDashboard: React.FC = () => {
           </div>
         )}
       </div>
+
+      {completedPickups.length > 0 && (
+        <section className="space-y-3">
+          <h3 className="font-bold text-stone-900 text-base">Recent Completed Collections</h3>
+          <div className="divide-y divide-stone-200 border-y border-stone-200">
+            {completedPickups.slice(0, 3).map((donation) => (
+              <button
+                key={donation.id}
+                onClick={() => setActiveDetailDonation(donation)}
+                className="w-full py-3 flex items-center justify-between gap-3 text-left hover:bg-stone-50"
+              >
+                <span className="min-w-0">
+                  <strong className="block text-sm text-stone-900 truncate">{donation.title}</strong>
+                  <span className="text-xs text-stone-500">{donation.quantity} {donation.unit} from {donation.donorName}</span>
+                </span>
+                <span className="text-xs font-semibold text-emerald-800 shrink-0">Delivered</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 };

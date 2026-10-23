@@ -13,7 +13,6 @@ import {
   Menu,
   X,
   AlertTriangle,
-  RotateCcw,
   BarChart3,
   HeartHandshake,
   User
@@ -35,10 +34,8 @@ export const Navbar: React.FC = () => {
     currentRecipient,
     setIsRoleModalOpen,
     setIsImpactModalOpen,
-    resetDemoData,
     isAuthModalOpen,
     setIsAuthModalOpen,
-    isCloudMode,
     firebaseUser,
     userProfile,
   } = useApp();
@@ -47,20 +44,17 @@ export const Navbar: React.FC = () => {
 
   return (
     <header className="sticky top-0 z-40 bg-[#fcfbf9]/95 backdrop-blur-md border-b border-stone-200/80 transition-all">
-      {/* Top Banner: Hackathon & Cloud / Demo Status */}
+      {/* Account status and data information */}
       <div className="bg-[#1b4332] text-white text-xs px-4 py-1.5 flex items-center justify-between">
         <div className="max-w-7xl mx-auto w-full flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1 bg-emerald-700/60 text-emerald-100 px-2 py-0.5 rounded text-[11px] font-semibold tracking-wide uppercase">
-              TechTrix &apos;26 Phase 2
-            </span>
             <button
               onClick={() => setIsAuthModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-semibold tracking-wide bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-700 text-emerald-200 transition-colors cursor-pointer"
-              title="Click to view Cloud Firestore status or switch authentication"
+              className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-700 text-emerald-200 transition-colors cursor-pointer"
+              title="View Firebase account status"
             >
-              <span className={`w-2 h-2 rounded-full ${isCloudMode ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
-              <span>{isCloudMode ? 'Cloud Firestore: Realtime' : 'Local Demo Mode'}</span>
+              <span className={`w-2 h-2 rounded-full ${firebaseUser ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+              <span>{firebaseUser ? 'Firebase account active' : 'Not signed in'}</span>
             </button>
           </div>
 
@@ -81,16 +75,7 @@ export const Navbar: React.FC = () => {
               className="hover:text-emerald-200 underline decoration-emerald-400/60 underline-offset-2 flex items-center gap-1 transition-colors"
             >
               <BarChart3 className="w-3.5 h-3.5" />
-              Impact Methodology
-            </button>
-            <span className="text-emerald-600 hidden md:inline">|</span>
-            <button
-              onClick={resetDemoData}
-              title="Reset sample listings to default state"
-              className="text-emerald-200/80 hover:text-white flex items-center gap-1 transition-colors text-[11px]"
-            >
-              <RotateCcw className="w-3 h-3" />
-              Reset Demo Data
+              Data &amp; Impact
             </button>
           </div>
         </div>
@@ -115,9 +100,6 @@ export const Navbar: React.FC = () => {
                 <div className="flex items-center gap-1.5">
                   <span className="text-xl font-bold tracking-tight text-emerald-950 font-sans">
                     FoodBridge
-                  </span>
-                  <span className="text-[10px] font-bold uppercase tracking-wider bg-stone-100 text-stone-600 border border-stone-300 px-1.5 py-0.2 rounded">
-                    Demo
                   </span>
                 </div>
                 <p className="text-[11px] text-stone-600 hidden sm:block -mt-0.5">
@@ -332,14 +314,14 @@ export const Navbar: React.FC = () => {
                 onClick={() => setIsRoleModalOpen(true)}
                 className="bg-[#1b4332] text-white hover:bg-emerald-900 text-sm font-semibold px-4 py-2 rounded-lg transition-all shadow-xs flex items-center gap-2"
               >
-                <span>Enter Demo Workspace</span>
+                <span>Open Workspace</span>
                 <ArrowRightLeft className="w-4 h-4 text-emerald-300" />
               </button>
             ) : (
               <button
                 onClick={() => setIsRoleModalOpen(true)}
                 className="group flex items-center gap-2 bg-stone-100 hover:bg-stone-200/80 border border-stone-200 rounded-lg px-3 py-1.5 transition-all text-left"
-                title="Switch demo persona (Donor, Recipient, Admin)"
+                title="Switch workspace"
               >
                 <div className="w-7 h-7 rounded-md bg-white border border-stone-200 flex items-center justify-center text-emerald-800 shadow-2xs">
                   {role === 'donor' && <Building2 className="w-4 h-4" />}
@@ -348,7 +330,7 @@ export const Navbar: React.FC = () => {
                 </div>
                 <div className="hidden sm:block text-xs">
                   <div className="text-[10px] uppercase font-bold tracking-wider text-stone-500">
-                    Role: {role}
+                    Workspace: {role === 'admin' && !firebaseUser ? 'reviewer preview' : role}
                   </div>
                   <div className="font-semibold text-stone-800 truncate max-w-[130px]">
                     {role === 'donor' && currentDonor.name}
@@ -468,7 +450,7 @@ export const Navbar: React.FC = () => {
               className="w-full text-left px-3 py-2 text-sm font-semibold text-emerald-900 bg-emerald-50 rounded-lg flex items-center justify-between"
             >
               <span>{firebaseUser ? `Account: ${firebaseUser.email}` : 'Sign In / Log In'}</span>
-              <span className={`w-2.5 h-2.5 rounded-full ${isCloudMode ? 'bg-emerald-500' : 'bg-amber-400'}`} />
+              <span className={`w-2.5 h-2.5 rounded-full ${firebaseUser ? 'bg-emerald-500' : 'bg-amber-400'}`} />
             </button>
             <button
               onClick={() => {
@@ -477,7 +459,7 @@ export const Navbar: React.FC = () => {
               }}
               className="w-full text-left px-3 py-2 text-sm font-semibold text-stone-700 hover:bg-stone-50 rounded-lg flex items-center justify-between"
             >
-              <span>Switch Demo Persona / Role</span>
+              <span>Switch Workspace</span>
               <ArrowRightLeft className="w-4 h-4 text-stone-500" />
             </button>
           </div>

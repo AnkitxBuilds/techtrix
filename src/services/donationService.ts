@@ -3,16 +3,13 @@ import {
   doc,
   onSnapshot,
   setDoc,
-  getDocs,
   runTransaction,
-  serverTimestamp,
   Unsubscribe,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { handleFirestoreError, OperationType } from './firestoreErrorHandler';
 import { FoodDonation, Organization, DonorProfile, DonationStatus, SafetyStatus } from '../types';
 import { calculateEstimatedKg } from './quantityUtils';
-import { INITIAL_DONATIONS, SAMPLE_ORGANIZATIONS, SAMPLE_DONORS } from '../data/mockData';
 
 export function subscribeDonations(
   onData: (donations: FoodDonation[]) => void,
@@ -77,44 +74,6 @@ export function subscribeDonors(
       if (onError) onError(error);
     }
   );
-}
-
-/**
- * Seed initial sample records into Cloud Firestore if collections are empty.
- */
-export async function seedInitialDataIfEmpty(): Promise<boolean> {
-  try {
-    const snap = await getDocs(collection(db, 'donations'));
-    if (!snap.empty) {
-      return false; // Already populated
-    }
-
-    // Populate initial organizations
-    for (const org of SAMPLE_ORGANIZATIONS) {
-      await setDoc(doc(db, 'organizations', org.id), org);
-    }
-
-    // Populate initial donors
-    for (const donor of SAMPLE_DONORS) {
-      await setDoc(doc(db, 'donors', donor.id), donor);
-    }
-
-    // Populate initial donations
-    for (const donation of INITIAL_DONATIONS) {
-      await setDoc(doc(db, 'donations', donation.id), donation);
-      // History subcollection
-      if (donation.statusHistory && donation.statusHistory.length > 0) {
-        for (const h of donation.statusHistory) {
-          await setDoc(doc(db, 'donations', donation.id, 'history', h.id), h);
-        }
-      }
-    }
-
-    return true;
-  } catch (error) {
-    console.warn('Initial seeding notice (using local fallback if unauthenticated):', error);
-    return false;
-  }
 }
 
 /**
