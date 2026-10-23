@@ -1,0 +1,162 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Default-Deny Catch-All
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        (request.auth.token.email == 'ankitk04819@gmail.com' && request.auth.token.email_verified == true)
+      );
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Users collection
+    match /users/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
+      allow create: if isOwner(userId) &&
+        isValidId(userId) &&
+        incoming().id == userId &&
+        incoming().role in ['donor', 'recipient'] &&
+        (!('verified' in incoming()) || incoming().verified == false);
+      allow update: if isOwner(userId) &&
+        isValidId(userId) &&
+        incoming().id == existing().id &&
+        incoming().role == existing().role &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'entityId', 'updatedAt']);
+      allow delete: if isAdmin();
+    }
+
+    // Admins directory
+    match /admins/{userId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // Organizations collection
+    match /organizations/{orgId} {
+      allow get, list: if isSignedIn();
+      allow create: if (isAdmin() || (isSignedIn() && incoming().verified == false)) &&
+        isValidId(orgId);
+      allow update: if isValidId(orgId) && (
+        isAdmin() ||
+        (
+          isSignedIn() &&
+          incoming().verified == existing().verified &&
+          incoming().verificationNumber == existing().verificationNumber &&
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'maxDailyCapacityKg',
+            'currentDailyAllocatedKg',
+            'storageCapabilities',
+            'transportVehicles',
+            'serviceArea',
+            'operatingHours',
+            'contactPerson',
+            'contactPhone',
+            'updatedAt'
+          ])
+        )
+      );
+      allow delete: if isAdmin();
+    }
+
+    // Donor profiles
+    match /donors/{donorId} {
+      allow get, list: if isSignedIn();
+      allow create: if isValidId(donorId) && (isAdmin() || isSignedIn());
+      allow update: if isValidId(donorId) && (isAdmin() || isSignedIn());
+      allow delete: if isAdmin();
+    }
+
+    // Food Donations
+    match /donations/{donationId} {
+      allow get, list: if isSignedIn();
+
+      allow create: if isSignedIn() &&
+        isValidId(donationId) &&
+        incoming().id == donationId &&
+        incoming().quantity > 0 &&
+        incoming().status == 'available' &&
+        (incoming().safetyStatus == 'eligible' || isAdmin());
+
+      allow update: if isValidId(donationId) && (
+        isAdmin() ||
+        // Action: Recipient claiming donation
+        (
+          isSignedIn() &&
+          existing().status == 'available' &&
+          incoming().status == 'accepted' &&
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'status',
+            'acceptedByOrgId',
+            'acceptedByOrgName',
+            'acceptedAt',
+            'scheduledPickupTime',
+            'assignedDriverName',
+            'assignedVehicle',
+            'currentStageIndex',
+            'updatedAt'
+          ])
+        ) ||
+        // Action: Advancing in-transit stages
+        (
+          isSignedIn() &&
+          existing().status in ['accepted', 'pickup_scheduled', 'picked_up'] &&
+          incoming().status in ['pickup_scheduled', 'picked_up', 'delivered'] &&
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'status',
+            'currentStageIndex',
+            'assignedDriverName',
+            'assignedVehicle',
+            'updatedAt'
+          ])
+        ) ||
+        // Action: Cancellation before delivery
+        (
+          isSignedIn() &&
+          existing().status != 'delivered' &&
+          incoming().status == 'cancelled' &&
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'status',
+            'updatedAt'
+          ])
+        )
+      );
+
+      allow delete: if isAdmin();
+
+      // Immutable Audit Log subcollection
+      match /history/{historyId} {
+        allow get, list: if isSignedIn();
+        allow create: if isSignedIn() && isValidId(historyId);
+        allow update, delete: if false; // Immutable!
+      }
+    }
+  }
+}

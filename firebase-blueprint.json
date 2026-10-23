@@ -1,0 +1,150 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Authenticated user profile with server-controlled role mapping.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "role": { "type": "string", "enum": ["donor", "recipient", "admin"] },
+        "entityId": { "type": "string" },
+        "displayName": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "email", "role"]
+    },
+    "Admin": {
+      "title": "Admin",
+      "description": "System admin marker document.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "assignedAt": { "type": "string" }
+      },
+      "required": ["id", "email"]
+    },
+    "Organization": {
+      "title": "Organization",
+      "description": "Verified hunger relief organization, shelter, or community kitchen.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "type": { "type": "string", "enum": ["NGO", "Shelter", "Charity", "Community Kitchen"] },
+        "verified": { "type": "boolean" },
+        "verificationNumber": { "type": "string" },
+        "address": { "type": "string" },
+        "serviceArea": { "type": "string" },
+        "maxDailyCapacityKg": { "type": "number" },
+        "currentDailyAllocatedKg": { "type": "number" },
+        "storageCapabilities": { "type": "array" },
+        "transportVehicles": { "type": "array" },
+        "dietaryPreferences": { "type": "array" },
+        "contactPerson": { "type": "string" },
+        "contactPhone": { "type": "string" },
+        "operatingHours": { "type": "string" },
+        "refrigeratedVanAvailable": { "type": "boolean" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "name", "type", "verified", "maxDailyCapacityKg", "currentDailyAllocatedKg"]
+    },
+    "DonorProfile": {
+      "title": "DonorProfile",
+      "description": "Commercial food provider establishment profile.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "type": { "type": "string", "enum": ["Restaurant", "Hotel", "Canteen", "Hostel", "Event Organizer"] },
+        "address": { "type": "string" },
+        "area": { "type": "string" },
+        "contactPerson": { "type": "string" },
+        "contactPhone": { "type": "string" },
+        "verified": { "type": "boolean" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "name", "type", "address", "verified"]
+    },
+    "FoodDonation": {
+      "title": "FoodDonation",
+      "description": "Surplus food donation record with safety specifications and chain of custody tracking.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "category": { "type": "string" },
+        "quantity": { "type": "number" },
+        "unit": { "type": "string", "enum": ["kg", "portions", "boxes", "trays"] },
+        "servingsCount": { "type": "number" },
+        "preparedAt": { "type": "string" },
+        "deadlineAt": { "type": "string" },
+        "storageCondition": { "type": "string" },
+        "packagingType": { "type": "string" },
+        "pickupAddress": { "type": "string" },
+        "pickupArea": { "type": "string" },
+        "donorId": { "type": "string" },
+        "donorName": { "type": "string" },
+        "donorType": { "type": "string" },
+        "contactPhone": { "type": "string" },
+        "handlingNotes": { "type": "string" },
+        "allergens": { "type": "array" },
+        "dietaryTags": { "type": "array" },
+        "imageUrl": { "type": "string" },
+        "status": { "type": "string", "enum": ["available", "accepted", "pickup_scheduled", "picked_up", "delivered", "cancelled", "expired"] },
+        "safetyStatus": { "type": "string", "enum": ["eligible", "needs_review", "blocked"] },
+        "safetyReviewNotes": { "type": "string" },
+        "acceptedByOrgId": { "type": "string" },
+        "acceptedByOrgName": { "type": "string" },
+        "acceptedAt": { "type": "string" },
+        "scheduledPickupTime": { "type": "string" },
+        "assignedDriverName": { "type": "string" },
+        "assignedVehicle": { "type": "string" },
+        "currentStageIndex": { "type": "number" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "title", "category", "quantity", "unit", "storageCondition", "pickupAddress", "deadlineAt", "donorId", "status", "safetyStatus"]
+    },
+    "AuditHistory": {
+      "title": "AuditHistory",
+      "description": "Immutable lifecycle progression entry.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "status": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "actor": { "type": "string" },
+        "note": { "type": "string" }
+      },
+      "required": ["id", "status", "timestamp", "actor"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User account documents mapping auth UID to role and organization/donor profile."
+    },
+    "/admins/{userId}": {
+      "schema": { "$ref": "#/entities/Admin" },
+      "description": "Authorized Food Safety Desk admin directory."
+    },
+    "/organizations/{orgId}": {
+      "schema": { "$ref": "#/entities/Organization" },
+      "description": "Recipient NGO profiles and intake quota tracking."
+    },
+    "/donors/{donorId}": {
+      "schema": { "$ref": "#/entities/DonorProfile" },
+      "description": "Commercial food donor business profiles."
+    },
+    "/donations/{donationId}": {
+      "schema": { "$ref": "#/entities/FoodDonation" },
+      "description": "Surplus food redistribution listings."
+    },
+    "/donations/{donationId}/history/{historyId}": {
+      "schema": { "$ref": "#/entities/AuditHistory" },
+      "description": "Subcollection tracking immutable event logs."
+    }
+  }
+}

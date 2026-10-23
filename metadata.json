@@ -1,0 +1,6 @@
+{
+  "name": "FoodBridge - Surplus Food Redistribution",
+  "description": "Intelligent surplus food waste reduction and safe redistribution platform connecting donors with verified NGOs and shelters.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
