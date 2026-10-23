@@ -40,6 +40,7 @@ export const Navbar: React.FC = () => {
     setIsAuthModalOpen,
     isCloudMode,
     firebaseUser,
+    userProfile,
   } = useApp();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -55,7 +56,7 @@ export const Navbar: React.FC = () => {
             </span>
             <button
               onClick={() => setIsAuthModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-semibold tracking-wide bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-700 text-emerald-200 transition-colors"
+              className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-semibold tracking-wide bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-700 text-emerald-200 transition-colors cursor-pointer"
               title="Click to view Cloud Firestore status or switch authentication"
             >
               <span className={`w-2 h-2 rounded-full ${isCloudMode ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
@@ -66,12 +67,12 @@ export const Navbar: React.FC = () => {
           <div className="flex items-center gap-3 text-xs">
             <button
               onClick={() => setIsAuthModalOpen(true)}
-              className="hover:text-emerald-200 text-emerald-200/90 text-xs flex items-center gap-1 font-medium transition-colors"
+              className="hover:text-emerald-200 text-emerald-200/90 text-xs flex items-center gap-1 font-medium transition-colors cursor-pointer"
             >
               {firebaseUser ? (
-                <span>Account: {firebaseUser.email?.split('@')[0]}</span>
+                <span>Account: {firebaseUser.email?.split('@')[0]} ({userProfile?.role || 'user'})</span>
               ) : (
-                <span>Sign In / Cloud Auth</span>
+                <span>Sign In / Log In</span>
               )}
             </button>
             <span className="text-emerald-600 hidden md:inline">|</span>
@@ -319,11 +320,11 @@ export const Navbar: React.FC = () => {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setIsAuthModalOpen(true)}
-              className="hidden sm:inline-flex items-center gap-1.5 text-stone-700 hover:text-emerald-950 hover:bg-stone-100/90 text-xs font-semibold px-3 py-2 rounded-lg transition-colors border border-stone-200"
-              title="Sign in or view cloud account"
+              className="hidden sm:inline-flex items-center gap-1.5 text-stone-700 hover:text-emerald-950 hover:bg-stone-100/90 text-xs font-semibold px-3 py-2 rounded-lg transition-colors border border-stone-200 cursor-pointer"
+              title="Sign in or view account"
             >
               <User className="w-3.5 h-3.5 text-emerald-800" />
-              <span>{firebaseUser ? 'My Account' : 'Sign In'}</span>
+              <span>{firebaseUser ? `My Account (${userProfile?.role || 'user'})` : 'Sign In / Log In'}</span>
             </button>
 
             {role === 'landing' ? (
@@ -466,7 +467,7 @@ export const Navbar: React.FC = () => {
               }}
               className="w-full text-left px-3 py-2 text-sm font-semibold text-emerald-900 bg-emerald-50 rounded-lg flex items-center justify-between"
             >
-              <span>{firebaseUser ? `Account: ${firebaseUser.email}` : 'Sign In / Cloud Account'}</span>
+              <span>{firebaseUser ? `Account: ${firebaseUser.email}` : 'Sign In / Log In'}</span>
               <span className={`w-2.5 h-2.5 rounded-full ${isCloudMode ? 'bg-emerald-500' : 'bg-amber-400'}`} />
             </button>
             <button

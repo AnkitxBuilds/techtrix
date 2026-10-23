@@ -14,7 +14,8 @@ import {
   CheckCircle2,
   Check,
   Navigation,
-  Ban
+  Ban,
+  UtensilsCrossed
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { FoodDonation } from '../../types';
@@ -37,6 +38,7 @@ export const DonationDetailModal: React.FC = () => {
   } = useApp();
 
   const [isAccepting, setIsAccepting] = useState(false);
+  const [isConfirming, setIsConfirming] = useState(false);
   const [pickupTime, setPickupTime] = useState('Within 45 mins');
   const [assignedDriver, setAssignedDriver] = useState('Van Driver Rajesh (Volunteer)');
   const [assignedVehicle, setAssignedVehicle] = useState('Insulated Van #01');
@@ -58,8 +60,10 @@ export const DonationDetailModal: React.FC = () => {
   const hasCapacity = batchKg <= remainingRecipientCapacity;
 
   const handleConfirmAccept = async () => {
-    if (!safetyCheckConfirmed) return;
+    if (!safetyCheckConfirmed || isConfirming) return;
+    setIsConfirming(true);
     const ok = await acceptDonation(donation.id, pickupTime, assignedDriver, assignedVehicle);
+    setIsConfirming(false);
     if (ok) {
       setIsAccepting(false);
       setActiveDetailDonation(null);
@@ -156,15 +160,24 @@ export const DonationDetailModal: React.FC = () => {
         <div className="p-6 overflow-y-auto space-y-6 flex-1 text-stone-700 text-sm">
           {/* Top Banner: Image & Key Specs */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            <div className="md:col-span-1 rounded-xl overflow-hidden border border-stone-200 bg-stone-100 relative h-48 md:h-full min-h-[170px]">
-              <img
-                src={donation.imageUrl}
-                alt={donation.title}
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute bottom-2 left-2 right-2 bg-stone-900/80 backdrop-blur-xs text-white text-[11px] p-1.5 rounded text-center">
-                Sample photo preview
-              </div>
+            <div className="md:col-span-1 rounded-xl overflow-hidden border border-stone-200 bg-stone-100 relative h-48 md:h-full min-h-[170px] flex items-center justify-center">
+              {donation.imageUrl ? (
+                <>
+                  <img
+                    src={donation.imageUrl}
+                    alt={donation.title}
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute bottom-2 left-2 right-2 bg-stone-900/80 backdrop-blur-xs text-white text-[11px] p-1.5 rounded text-center">
+                    Food Batch Photo
+                  </div>
+                </>
+              ) : (
+                <div className="flex flex-col items-center justify-center text-stone-400 gap-1.5 p-4 text-center">
+                  <UtensilsCrossed className="w-8 h-8 text-stone-300" />
+                  <span className="text-xs font-medium">No photo uploaded</span>
+                </div>
+              )}
             </div>
 
             <div className="md:col-span-2 space-y-4">

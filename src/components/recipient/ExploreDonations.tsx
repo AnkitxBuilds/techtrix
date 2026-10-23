@@ -12,7 +12,8 @@ import {
   List,
   AlertTriangle,
   ArrowUpDown,
-  Check
+  Check,
+  UtensilsCrossed
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { FoodCategory, FoodDonation } from '../../types';
@@ -297,12 +298,19 @@ export const ExploreDonations: React.FC = () => {
               >
                 <div>
                   {/* Photo & Badges */}
-                  <div className="relative h-44 overflow-hidden bg-stone-100">
-                    <img
-                      src={d.imageUrl}
-                      alt={d.title}
-                      className="w-full h-full object-cover"
-                    />
+                  <div className="relative h-44 overflow-hidden bg-stone-100 flex items-center justify-center">
+                    {d.imageUrl ? (
+                      <img
+                        src={d.imageUrl}
+                        alt={d.title}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex flex-col items-center justify-center bg-stone-100 text-stone-400 gap-1">
+                        <UtensilsCrossed className="w-8 h-8 text-stone-300" />
+                        <span className="text-[11px] font-medium text-stone-400">{d.category}</span>
+                      </div>
+                    )}
                     <div className="absolute top-2.5 left-2.5 flex gap-1.5 flex-wrap">
                       <span className="text-[10px] font-bold uppercase bg-stone-950/80 backdrop-blur-xs text-white px-2 py-0.5 rounded">
                         {d.category}
@@ -419,11 +427,17 @@ export const ExploreDonations: React.FC = () => {
                 className="p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 hover:bg-stone-50/60 transition-colors"
               >
                 <div className="flex items-start gap-4">
-                  <img
-                    src={d.imageUrl}
-                    alt={d.title}
-                    className="w-16 h-16 rounded-xl object-cover shrink-0 border border-stone-200"
-                  />
+                  {d.imageUrl ? (
+                    <img
+                      src={d.imageUrl}
+                      alt={d.title}
+                      className="w-16 h-16 rounded-xl object-cover shrink-0 border border-stone-200"
+                    />
+                  ) : (
+                    <div className="w-16 h-16 rounded-xl bg-stone-100 border border-stone-200 flex items-center justify-center text-stone-400 shrink-0">
+                      <UtensilsCrossed className="w-6 h-6 text-stone-300" />
+                    </div>
+                  )}
                   <div className="space-y-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-[10px] font-bold uppercase bg-stone-100 text-stone-700 px-2 py-0.5 rounded">

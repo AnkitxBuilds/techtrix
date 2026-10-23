@@ -13,7 +13,8 @@ import {
   Check,
   XCircle,
   Building2,
-  Send
+  Send,
+  UtensilsCrossed
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { evaluateSmartMatches } from '../../services/smartMatch';
@@ -127,11 +128,17 @@ export const SmartMatchView: React.FC = () => {
       <div className="bg-white rounded-2xl border border-stone-200 p-5 shadow-xs">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-start gap-3.5">
-            <img
-              src={targetDonation.imageUrl}
-              alt={targetDonation.title}
-              className="w-16 h-16 rounded-xl object-cover border border-stone-200 shrink-0"
-            />
+            {targetDonation.imageUrl ? (
+              <img
+                src={targetDonation.imageUrl}
+                alt={targetDonation.title}
+                className="w-16 h-16 rounded-xl object-cover border border-stone-200 shrink-0"
+              />
+            ) : (
+              <div className="w-16 h-16 rounded-xl bg-stone-100 border border-stone-200 flex items-center justify-center text-stone-400 shrink-0">
+                <UtensilsCrossed className="w-6 h-6 text-stone-300" />
+              </div>
+            )}
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-[10px] font-bold uppercase bg-stone-100 text-stone-700 px-2 py-0.5 rounded">

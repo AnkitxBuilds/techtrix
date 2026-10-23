@@ -303,12 +303,19 @@ export const DonorDashboard: React.FC = () => {
                 >
                   <div>
                     {/* Image & Status Badges */}
-                    <div className="relative h-40 overflow-hidden bg-stone-100">
-                      <img
-                        src={donation.imageUrl}
-                        alt={donation.title}
-                        className="w-full h-full object-cover"
-                      />
+                    <div className="relative h-40 overflow-hidden bg-stone-100 flex items-center justify-center">
+                      {donation.imageUrl ? (
+                        <img
+                          src={donation.imageUrl}
+                          alt={donation.title}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex flex-col items-center justify-center bg-stone-100 text-stone-400 gap-1">
+                          <UtensilsCrossed className="w-8 h-8 text-stone-300" />
+                          <span className="text-[11px] font-medium text-stone-400">{donation.category}</span>
+                        </div>
+                      )}
                       <div className="absolute top-2.5 left-2.5 flex gap-1.5 flex-wrap">
                         <span className="text-[10px] font-bold uppercase bg-stone-950/80 backdrop-blur-xs text-white px-2 py-0.5 rounded">
                           {donation.category}

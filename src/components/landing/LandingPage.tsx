@@ -69,6 +69,8 @@ export const LandingPage: React.FC = () => {
     setIsRoleModalOpen,
     setActiveDetailDonation,
     setSmartMatchTargetDonation,
+    setIsAuthModalOpen,
+    firebaseUser,
   } = useApp();
 
   // Active eligible donations for preview
@@ -195,6 +197,13 @@ export const LandingPage: React.FC = () => {
                 >
                   <span>Switch Demo Persona</span>
                   <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+                <span className="text-stone-300 hidden sm:inline">&bull;</span>
+                <button
+                  onClick={() => setIsAuthModalOpen(true)}
+                  className="text-stone-700 hover:text-emerald-950 font-semibold underline underline-offset-2 flex items-center gap-1 transition-colors cursor-pointer"
+                >
+                  <span>{firebaseUser ? 'My Account' : 'Sign In / Log In'}</span>
                 </button>
               </div>
             </div>

@@ -14,7 +14,8 @@ import {
   Check,
   XCircle,
   Navigation,
-  FileText
+  FileText,
+  UtensilsCrossed
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { FoodDonation, DonationStatus } from '../../types';
@@ -124,11 +125,17 @@ export const TrackingView: React.FC = () => {
       <div className="bg-white rounded-2xl border border-stone-200 p-6 shadow-xs space-y-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-stone-100">
           <div className="flex items-start gap-4">
-            <img
-              src={donation.imageUrl}
-              alt={donation.title}
-              className="w-16 h-16 rounded-xl object-cover shrink-0 border border-stone-200"
-            />
+            {donation.imageUrl ? (
+              <img
+                src={donation.imageUrl}
+                alt={donation.title}
+                className="w-16 h-16 rounded-xl object-cover shrink-0 border border-stone-200"
+              />
+            ) : (
+              <div className="w-16 h-16 rounded-xl bg-stone-100 border border-stone-200 flex items-center justify-center text-stone-400 shrink-0">
+                <UtensilsCrossed className="w-6 h-6 text-stone-300" />
+              </div>
+            )}
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-[10px] font-bold uppercase bg-stone-100 text-stone-700 px-2 py-0.5 rounded">

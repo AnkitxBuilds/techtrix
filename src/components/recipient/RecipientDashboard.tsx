@@ -15,7 +15,8 @@ import {
   Building2,
   Calendar,
   Save,
-  Check
+  Check,
+  UtensilsCrossed
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { StorageCondition } from '../../types';
@@ -32,11 +33,17 @@ export const RecipientDashboard: React.FC = () => {
     advanceStage,
   } = useApp();
 
-  // Pickups accepted by this recipient
+  // Pickups accepted by this recipient — match by ID (primary) or exact org name (fallback)
   const myAcceptedDonations = useMemo(() => {
-    return donations.filter(
-      (d) => d.acceptedByOrgId === currentRecipient.id || d.acceptedByOrgName?.includes(currentRecipient.name)
-    );
+    return donations.filter((d) => {
+      if (!d.acceptedByOrgId && !d.acceptedByOrgName) return false;
+      return (
+        d.acceptedByOrgId === currentRecipient.id ||
+        d.acceptedByOrgName === currentRecipient.name ||
+        (d.acceptedByOrgName && currentRecipient.name &&
+          d.acceptedByOrgName.toLowerCase() === currentRecipient.name.toLowerCase())
+      );
+    });
   }, [donations, currentRecipient]);
 
   // Urgent available donations (< 3 hours)
@@ -267,11 +274,18 @@ export const RecipientDashboard: React.FC = () => {
               >
                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                   <div className="flex items-start gap-4">
-                    <img
-                      src={d.imageUrl}
-                      alt={d.title}
-                      className="w-20 h-20 rounded-xl object-cover shrink-0 border border-stone-200"
-                    />
+                    {d.imageUrl ? (
+                      <img
+                        src={d.imageUrl}
+                        alt={d.title}
+                        className="w-20 h-20 rounded-xl object-cover shrink-0 border border-stone-200"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                      />
+                    ) : (
+                      <div className="w-20 h-20 rounded-xl shrink-0 border border-stone-200 bg-stone-100 flex items-center justify-center">
+                        <UtensilsCrossed className="w-8 h-8 text-stone-300" />
+                      </div>
+                    )}
                     <div className="space-y-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-[10px] font-bold uppercase bg-stone-100 text-stone-700 px-2 py-0.5 rounded">
